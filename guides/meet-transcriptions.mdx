@@ -1,0 +1,233 @@
+---
+title: Google Meet Transcription Setup
+description: Configure automatic transcription for Google Meet calls
+---
+
+Morning Brain Starter can automatically enable transcription for Google Meet calls and import transcription documents into your client meeting logs.
+
+## How It Works
+
+The system supports two modes of transcription activation:
+
+1. **Automatic (API)**: Uses Google Meet API to enable transcription directly in the meeting space
+2. **Reminder (Fallback)**: Adds a reminder to the event description if API access isn't available
+
+## Required Scopes
+
+Transcription features require specific Google OAuth scopes defined in `/home/daytona/workspace/source/scripts/setup_oauth.py:30-40`:
+
+```python
+GOOGLE_SCOPES = [
+    # Calendar: read events and modify (add Meet, accept/reject, description)
+    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/calendar.events",
+    # Meet: activate transcription in meeting space
+    "https://www.googleapis.com/auth/meetings.space.settings",
+    # Gmail: read recent mail (morning, bitácoras)
+    "https://www.googleapis.com/auth/gmail.readonly",
+    # Docs: read linked Docs content (transcriptions in Calendar events)
+    "https://www.googleapis.com/auth/documents.readonly",
+]
+```
+
+<Note>
+The key scope for automatic transcription is `meetings.space.settings`. Without this scope, the system falls back to reminder mode.
+</Note>
+
+## Google Cloud Setup
+
+<Steps>
+  <Step title="Enable Google Meet API">
+    In your Google Cloud Console project:
+    1. Navigate to APIs & Services > Library
+    2. Search for "Google Meet API"
+    3. Click Enable
+  </Step>
+  <Step title="Enable Google Docs API">
+    Also enable the Google Docs API to read transcription documents:
+    1. Search for "Google Docs API"
+    2. Click Enable
+  </Step>
+  <Step title="Configure OAuth consent">
+    Add the required scopes to your OAuth consent screen:
+    - `https://www.googleapis.com/auth/meetings.space.settings`
+    - `https://www.googleapis.com/auth/documents.readonly`
+  </Step>
+  <Step title="Generate new token">
+    Run the OAuth setup to get a token with all scopes:
+    ```bash
+    .venv/bin/python scripts/setup_oauth.py --regenerate
+    ```
+  </Step>
+</Steps>
+
+## Transcription Modes
+
+### Automatic Transcription
+
+When the `meetings.space.settings` scope is available, the system uses the Google Meet API to enable transcription:
+
+```python calendar_lite.py:604-648
+def enable_meet_transcription_for_space(meeting_code: str) -> bool:
+    """
+    Activa la transcripción automática en el space de Meet (Meet API spaces.patch).
+    meeting_code: código tipo abc-mnop-xyz (del enlace meet.google.com/...).
+    Requiere scope meetings.space.settings. Devuelve True si se aplicó correctamente.
+    """
+    space_name = meeting_code.strip()
+    url = f"{MEET_API_BASE}/spaces/{space_name}?updateMask=config.artifactConfig.transcriptionConfig"
+    body = {
+        "config": {
+            "artifactConfig": {
+                "transcriptionConfig": {"autoTranscriptionGeneration": "ON"},
+            }
+        }
+    }
+```
+
+This directly configures the meeting space before or during the call.
+
+### Reminder Mode
+
+If the API scope isn't available, the system adds a reminder to the event description:
+
+```python calendar_lite.py:38
+TRANSCRIPTION_REMINDER_MARKER = "Transcripción: activar al iniciar la reunión en Meet."
+```
+
+This marker is added to the event's description field and won't be duplicated on subsequent runs.
+
+## Using Transcription Features
+
+### Enable for Today's Meetings
+
+Activate transcription for all upcoming meetings:
+
+```bash
+python scripts/calendar_lite.py --today --add-transcription-reminder
+```
+
+### Enable for Specific Date Range
+
+Target meetings in a specific period:
+
+```bash
+python scripts/calendar_lite.py --range 2025-02-10:2025-02-14 --add-transcription-reminder
+```
+
+### Only Your Meetings
+
+Apply only to meetings where you're the organizer or an invited attendee:
+
+```bash
+python scripts/calendar_lite.py --today --add-transcription-reminder
+```
+
+<Note>
+By default, `--add-transcription-reminder` only affects meetings where you're involved. Use `--transcription-all` to apply to all meetings in the calendar.
+</Note>
+
+### All Meetings (Use with Caution)
+
+```bash
+python scripts/calendar_lite.py --range this_week --add-transcription-reminder --transcription-all
+```
+
+<Warning>
+Using `--transcription-all` will attempt to enable transcription for all meetings in the calendar, including those you don't organize. Use this carefully.
+</Warning>
+
+## Transcript Storage
+
+Google Meet stores transcripts as Google Docs in your Drive. These are automatically linked to the calendar event as attachments.
+
+### Import Transcripts
+
+Import transcripts from yesterday's meetings:
+
+```bash
+python scripts/calendar_lite.py --import-transcriptions
+```
+
+For a specific date:
+
+```bash
+python scripts/calendar_lite.py --import-transcriptions --import-transcriptions-date 2025-02-08
+```
+
+### Transcript File Location
+
+Imported transcripts are saved to:
+
+```
+context/clients/<client>/projects/<project>/meetings/transcripcion-YYYY-MM-DD-<slug>.md
+```
+
+The system:
+1. Fetches events for the specified date
+2. Matches events to clients using `config/clients.yaml`
+3. Checks for Google Docs attachments or links in descriptions
+4. Downloads the Doc content
+5. Saves as markdown with metadata header
+
+### Transcript Format
+
+```markdown
+# Transcripción – Weekly Tycho Sync
+
+**Evento:** Weekly Tycho Sync
+**Fecha:** 2025-02-08
+**Proyecto:** tycho-com
+**Origen:** Doc enlazado en Calendar (adjunto del evento)
+
+---
+
+=== Transcripción ===
+
+[Transcript content here...]
+```
+
+## Reading Transcripts
+
+Read a transcript directly to stdout:
+
+```bash
+python scripts/calendar_lite.py --read-transcription --read-transcription-date 2025-02-08
+```
+
+Filter by client:
+
+```bash
+python scripts/calendar_lite.py --read-transcription --read-transcription-client tycho
+```
+
+## Troubleshooting
+
+<Accordion title="Transcription not activating">
+  Check that:
+  1. Google Meet API is enabled in your GCP project
+  2. Your OAuth token includes the `meetings.space.settings` scope
+  3. Run `scripts/setup_oauth.py --regenerate` to get a new token with all scopes
+  4. The meeting has a valid Meet link (hangoutLink)
+</Accordion>
+
+<Accordion title="Cannot read transcript documents">
+  Ensure:
+  1. Google Docs API is enabled in GCP
+  2. Your token includes `documents.readonly` scope
+  3. You have access to the document in Google Drive
+  4. The document is properly linked in the calendar event
+</Accordion>
+
+<Accordion title="Import finds no transcripts">
+  Verify:
+  1. The meeting actually occurred and Meet generated a transcript
+  2. The transcript is attached to the calendar event or linked in the description
+  3. The event title matches a client in `config/clients.yaml`
+  4. You're checking the correct date (transcripts appear after the meeting ends)
+</Accordion>
+
+## Related Features
+
+- [Client Bitácoras](/guides/client-bitacoras) - Transcripts are logged in client bitácoras
+- [Troubleshooting](/guides/troubleshooting) - Common OAuth and API issues

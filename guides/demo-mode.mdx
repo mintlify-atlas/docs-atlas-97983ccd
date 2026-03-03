@@ -1,0 +1,279 @@
+---
+title: Demo Mode
+description: Using demo and fake data for testing Morning Brain Starter
+---
+
+Demo mode allows you to test Morning Brain Starter with fake data, perfect for:
+
+- Testing the system without real API calls
+- Demonstrations and screenshots
+- Development and debugging
+- Learning the system before connecting real accounts
+
+## Overview
+
+Demo mode uses pre-generated fake data with a theme from **The Expanse** (sci-fi series), including clients like Tycho Station, Rocinante Corp, and MCR.
+
+## Activating Demo Mode
+
+Demo mode is controlled by a single flag file for Gmail data:
+
+<Steps>
+  <Step title="Create the flag file">
+    Create an empty file at `config/demo_gmail_fake.yaml`:
+    ```bash
+    touch config/demo_gmail_fake.yaml
+    ```
+  </Step>
+  <Step title="Run morning routine">
+    When this file exists, `email_lite` returns demo data instead of calling Gmail API:
+    ```bash
+    .venv/bin/python run_morning.py
+    ```
+  </Step>
+  <Step title="Deactivate demo mode">
+    Delete the flag file to return to real data:
+    ```bash
+    rm config/demo_gmail_fake.yaml
+    ```
+  </Step>
+</Steps>
+
+<Note>
+The file `demo_gmail_fake.yaml` is in `.gitignore` and won't be committed to version control.
+</Note>
+
+## Demo Data Files
+
+From `/home/daytona/workspace/source/config/demo/README.md:1-5`:
+
+- **`emails_fake.json`**: List of fake emails (The Expanse theme) to use in the morning demo when you don't want to call real Gmail.
+- **Activation**: Create a `demo_gmail_fake.yaml` file in the root of `config/` (can be empty). This file is in `.gitignore`; if it exists, `email_lite` returns this data instead of querying Gmail.
+- **Reset**: The command `python scripts/reset_config.py` doesn't delete `config/demo/` or the flag; if `demo_gmail_fake.yaml` doesn't exist, it (re)creates it so demo remains available after a reset.
+
+### Fake Email Data
+
+The demo emails are defined in `config/demo/emails_fake.json`:
+
+```json emails_fake.json
+[
+  {
+    "id": "demo-1",
+    "subject": "Rocinante Corp – Confirmación ventana mantenimiento Tycho (marzo)",
+    "from": "ops@tycho-station.org",
+    "date": "Fri, 7 Feb 2025 09:12:00 +0000"
+  },
+  {
+    "id": "demo-2",
+    "subject": "Re: Oferta ampliación SLA – EVA y armamento",
+    "from": "holden@rocinante-corp.org",
+    "date": "Thu, 6 Feb 2025 14:22:00 +0000"
+  },
+  {
+    "id": "demo-3",
+    "subject": "Tycho – Contrato suministros a largo plazo (Acme)",
+    "from": "compras@acme-orbital.com",
+    "date": "Wed, 5 Feb 2025 11:05:00 +0000"
+  },
+  {
+    "id": "demo-4",
+    "subject": "MCRN – Briefing operación conjunta (preliminar)",
+    "from": "mcrn.logistics@mcr.mars",
+    "date": "Tue, 4 Feb 2025 08:00:00 +0000"
+  }
+]
+```
+
+## Demo Clients
+
+The demo includes five fictional clients inspired by The Expanse:
+
+### Client Structure
+
+Each demo client has a complete directory structure:
+
+```
+context/clients/
+├── tycho/
+│   ├── bitacora.md
+│   ├── client.yaml
+│   └── projects/
+│       └── tycho-com/
+├── rocinante/
+├── mao-kwikowski/
+├── mcr/
+└── acme/
+```
+
+### Client Configuration
+
+Example `client.yaml` for Tycho:
+
+```yaml tycho/client.yaml
+id: tycho
+name: Tycho
+description: "Cliente demo – Tycho (ficción)"
+website: https://example.com
+# Projects are discovered by scanning projects/ directory
+```
+
+### Client Matching
+
+Demo clients are configured in `config/clients.yaml`:
+
+```yaml
+clients:
+  tycho:
+    - tycho
+  rocinante:
+    - rocinante
+  mao-kwikowski:
+    - mao
+    - kwikowski
+  mcr:
+    - mcr
+  acme:
+    - acme
+```
+
+This matches the email subjects and senders in `emails_fake.json`, so demo emails automatically route to the correct client bitácoras.
+
+## Using Demo Data
+
+### Morning Routine with Demo Data
+
+With demo mode active:
+
+```bash
+# Create flag file
+touch config/demo_gmail_fake.yaml
+
+# Run morning routine
+.venv/bin/python run_morning.py
+```
+
+You'll see:
+- Demo emails from The Expanse characters
+- No actual Gmail API calls
+- Bitácoras updated with demo client activity
+- All other features work normally (Calendar, Asana still use real APIs unless mocked separately)
+
+### Testing Client Matching
+
+Demo mode is perfect for testing client keyword matching:
+
+```bash
+# Check which emails match which clients
+python scripts/email_lite.py --list
+```
+
+Emails with "Tycho" in subject/sender will match the Tycho client.
+
+### Testing Bitácora Updates
+
+See demo data flow into bitácoras:
+
+```bash
+# Update bitácoras with demo emails
+python scripts/bitacora_append.py
+
+# Check tycho bitácora
+cat context/clients/tycho/bitacora.md
+```
+
+## Extending Demo Data
+
+### Add More Demo Emails
+
+Edit `config/demo/emails_fake.json`:
+
+```json
+[
+  {
+    "id": "demo-9",
+    "subject": "Your custom subject with client keyword",
+    "from": "someone@example.com",
+    "date": "Mon, 10 Feb 2025 10:00:00 +0000"
+  }
+]
+```
+
+### Add More Demo Clients
+
+<Steps>
+  <Step title="Add to clients.yaml">
+    ```yaml
+    clients:
+      newclient:
+        - keyword1
+        - keyword2
+    ```
+  </Step>
+  <Step title="Create client directory">
+    ```bash
+    mkdir -p context/clients/newclient/projects
+    ```
+  </Step>
+  <Step title="Add client metadata">
+    ```yaml context/clients/newclient/client.yaml
+    id: newclient
+    name: New Client
+    description: "Demo client for testing"
+    ```
+  </Step>
+  <Step title="Add demo emails">
+    Add emails with matching keywords to `emails_fake.json`
+  </Step>
+</Steps>
+
+## Demo Mode Limitations
+
+<Warning>
+Demo mode currently only affects Gmail data. Calendar and Asana still make real API calls unless you mock them separately.
+</Warning>
+
+What's mocked:
+- Gmail emails (via `emails_fake.json`)
+
+What's still real:
+- Google Calendar events
+- Asana tasks
+- Google Docs transcriptions
+- Google Meet API calls
+
+## Reset Configuration
+
+The `reset_config.py` script preserves demo mode:
+
+```bash
+python scripts/reset_config.py
+```
+
+This will:
+- Keep `config/demo/` directory intact
+- Recreate `demo_gmail_fake.yaml` if it doesn't exist
+- Reset other config files to defaults
+
+## Theme: The Expanse
+
+Demo data uses names from The Expanse sci-fi series:
+
+- **Tycho Station**: A massive space station and shipyard
+- **Rocinante Corp**: Named after the ship Rocinante
+- **MCR (Mars Congressional Republic)**: Martian military
+- **Mao-Kwikowski**: A powerful corporation in the series
+- **Acme**: Generic placeholder (not from the show)
+
+Characters referenced:
+- Fred Johnson (Tycho Station)
+- James Holden (Rocinante)
+- Various Mars and corporate personnel
+
+<Note>
+This is just for fun and demonstrations. Replace with your real clients when ready for production use.
+</Note>
+
+## Related Documentation
+
+- [Client Bitácoras](/guides/client-bitacoras) - See how demo emails flow into client logs
+- [Task Ordering](/guides/task-ordering) - Demo clients follow the same day-of-week prioritization

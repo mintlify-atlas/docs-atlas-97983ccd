@@ -1,0 +1,577 @@
+---
+title: Troubleshooting
+description: Common issues and solutions for Morning Brain Starter
+---
+
+This guide covers common problems you might encounter when setting up and using Morning Brain Starter.
+
+## Setup Issues
+
+<Accordion title="Python not found or wrong version">
+  **Symptoms:**
+  - `python: command not found`
+  - `Python version is 2.x` when you need 3.x
+  - Scripts fail with syntax errors
+
+  **Solutions:**
+
+  Try `python3` instead of `python`:
+  ```bash
+  python3 --version
+  python3 -m venv .venv
+  ```
+
+  Install Python 3.8+ if missing:
+  ```bash
+  # macOS with Homebrew
+  brew install python3
+
+  # Ubuntu/Debian
+  sudo apt update
+  sudo apt install python3 python3-venv python3-pip
+
+  # Check version
+  python3 --version  # Should be 3.8 or higher
+  ```
+
+  Update your shell aliases (add to `.bashrc` or `.zshrc`):
+  ```bash
+  alias python=python3
+  alias pip=pip3
+  ```
+</Accordion>
+
+<Accordion title="Virtual environment activation fails">
+  **Symptoms:**
+  - `source .venv/bin/activate` does nothing
+  - Commands still use system Python
+  - Package installations go to wrong location
+
+  **Solutions:**
+
+  Recreate the virtual environment:
+  ```bash
+  rm -rf .venv
+  python3 -m venv .venv
+  source .venv/bin/activate
+  pip install -r requirements.txt
+  ```
+
+  On Windows, use different activation:
+  ```bash
+  # Command Prompt
+  .venv\Scripts\activate.bat
+
+  # PowerShell
+  .venv\Scripts\Activate.ps1
+  ```
+
+  Verify activation worked:
+  ```bash
+  which python  # Should show .venv/bin/python
+  python --version
+  ```
+</Accordion>
+
+<Accordion title="Missing dependencies or import errors">
+  **Symptoms:**
+  - `ModuleNotFoundError: No module named 'google'`
+  - `ImportError: cannot import name 'build'`
+  - Scripts fail with import errors
+
+  **Solutions:**
+
+  Ensure virtual environment is activated:
+  ```bash
+  source .venv/bin/activate
+  ```
+
+  Install/reinstall dependencies:
+  ```bash
+  pip install --upgrade pip
+  pip install -r requirements.txt
+  ```
+
+  Check for conflicting installations:
+  ```bash
+  pip list | grep google
+  pip uninstall google-api-python-client
+  pip install google-api-python-client
+  ```
+
+  If still failing, clear pip cache:
+  ```bash
+  pip cache purge
+  pip install -r requirements.txt --no-cache-dir
+  ```
+</Accordion>
+
+## OAuth and Authentication
+
+<Accordion title="OAuth browser window doesn't open">
+  **Symptoms:**
+  - `setup_oauth.py` runs but no browser window appears
+  - Script hangs waiting for authorization
+  - Port binding errors
+
+  **Solutions:**
+
+  Check for port conflicts:
+  ```bash
+  # Kill process using the OAuth callback port
+  lsof -ti:8080 | xargs kill -9
+  ```
+
+  Try manual OAuth flow:
+  ```bash
+  # The script will print a URL - copy and paste into browser manually
+  .venv/bin/python scripts/setup_oauth.py --regenerate
+  ```
+
+  Check firewall settings:
+  - Allow Python to accept incoming connections
+  - Allow localhost connections on ephemeral ports
+  - Temporarily disable firewall for testing
+
+  If on remote server, use port forwarding:
+  ```bash
+  ssh -L 8080:localhost:8080 user@server
+  ```
+</Accordion>
+
+<Accordion title="Invalid client_id or client_secret">
+  **Symptoms:**
+  - `Error: invalid_client`
+  - `Falta GOOGLE_CLIENT_ID o GOOGLE_CLIENT_SECRET`
+  - OAuth flow fails immediately
+
+  **Solutions:**
+
+  Verify `.env` file exists and has correct values:
+  ```bash
+  # Check file location
+  ls -la resources/secrets/.env
+
+  # View contents (be careful - sensitive data!)
+  cat resources/secrets/.env
+  ```
+
+  Expected format:
+  ```bash
+  GOOGLE_CLIENT_ID=123456789-abcdefg.apps.googleusercontent.com
+  GOOGLE_CLIENT_SECRET=GOCSPX-abcdefg123456
+  GOOGLE_REFRESH_TOKEN=1//abc...
+  ```
+
+  Get correct credentials from Google Cloud Console:
+  1. Go to [console.cloud.google.com](https://console.cloud.google.com)
+  2. Navigate to APIs & Services > Credentials
+  3. Find your OAuth 2.0 Client ID
+  4. Download JSON and extract `client_id` and `client_secret`
+
+  Regenerate credentials if compromised:
+  1. Delete old OAuth client in Google Cloud Console
+  2. Create new OAuth 2.0 Client ID
+  3. Update `.env` with new values
+  4. Run `setup_oauth.py --regenerate`
+</Accordion>
+
+<Accordion title="Refresh token invalid or expired">
+  **Symptoms:**
+  - `Error: invalid_grant`
+  - "Token has been expired or revoked"
+  - API calls fail with 401 Unauthorized
+
+  **Solutions:**
+
+  Regenerate the refresh token:
+  ```bash
+  .venv/bin/python scripts/setup_oauth.py --regenerate
+  ```
+
+  This will:
+  - Open OAuth flow in browser
+  - Generate new refresh token
+  - Update `GOOGLE_REFRESH_TOKEN` in `.env`
+
+  Common causes:
+  - Token manually revoked in Google account settings
+  - OAuth consent screen moved from Testing to Production
+  - Client secret was regenerated
+  - More than 50 refresh tokens issued (older ones expire)
+
+  Prevent future issues:
+  - Don't share `.env` file
+  - Don't commit refresh tokens to git
+  - Keep OAuth consent screen in Testing for personal use
+</Accordion>
+
+## Permission and Scope Issues
+
+<Accordion title="Missing required scopes">
+  **Symptoms:**
+  - `Error: Insufficient Permission`
+  - "Request had insufficient authentication scopes"
+  - Features work partially but some fail
+
+  **Solutions:**
+
+  Check required scopes in `scripts/setup_oauth.py`:
+  ```python
+  GOOGLE_SCOPES = [
+      "https://www.googleapis.com/auth/calendar.readonly",
+      "https://www.googleapis.com/auth/calendar.events",
+      "https://www.googleapis.com/auth/meetings.space.settings",
+      "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/documents.readonly",
+  ]
+  ```
+
+  Regenerate token with all scopes:
+  ```bash
+  .venv/bin/python scripts/setup_oauth.py --regenerate
+  ```
+
+  Verify scopes in OAuth consent screen:
+  1. Go to Google Cloud Console
+  2. APIs & Services > OAuth consent screen
+  3. Check that all scopes are listed
+  4. Add any missing scopes
+  5. Regenerate token
+
+  Feature-specific scope requirements:
+  - **Calendar read**: `calendar.readonly`
+  - **Accept/decline events**: `calendar.events`
+  - **Meet transcription**: `meetings.space.settings`
+  - **Gmail**: `gmail.readonly`
+  - **Read transcripts**: `documents.readonly`
+</Accordion>
+
+<Accordion title="API not enabled in Google Cloud">
+  **Symptoms:**
+  - `Error: API not enabled`
+  - "Google Calendar API has not been used"
+  - 403 Forbidden errors
+
+  **Solutions:**
+
+  Enable required APIs in Google Cloud Console:
+
+  1. **Google Calendar API**:
+     - Go to [console.cloud.google.com](https://console.cloud.google.com)
+     - APIs & Services > Library
+     - Search "Google Calendar API"
+     - Click Enable
+
+  2. **Google Meet API** (for transcription):
+     - APIs & Services > Library
+     - Search "Google Meet API"
+     - Click Enable
+
+  3. **Gmail API**:
+     - Search "Gmail API"
+     - Click Enable
+
+  4. **Google Docs API** (for transcripts):
+     - Search "Google Docs API"
+     - Click Enable
+
+  Verify APIs are enabled:
+  ```bash
+  # List enabled APIs
+  gcloud services list --enabled
+  ```
+
+  Common mistake: Enabling APIs in wrong project
+  - Ensure you're in the same project as your OAuth credentials
+  - Check project ID matches in Console and `.env`
+</Accordion>
+
+<Accordion title="Rate limiting or quota exceeded">
+  **Symptoms:**
+  - `Error: Rate Limit Exceeded`
+  - "Quota exceeded for quota metric"
+  - Intermittent API failures
+
+  **Solutions:**
+
+  Check your quota usage:
+  1. Google Cloud Console
+  2. APIs & Services > Dashboard
+  3. View API metrics
+
+  Increase quotas if needed:
+  1. APIs & Services > Quotas
+  2. Find the relevant API and metric
+  3. Request quota increase (may require billing)
+
+  Reduce API calls:
+  ```bash
+  # Use demo mode for testing
+  touch config/demo_gmail_fake.yaml
+
+  # Fetch fewer days of data
+  python scripts/calendar_lite.py --range today
+
+  # Don't fetch all calendars
+  python scripts/email_lite.py --limit 10
+  ```
+
+  Implement caching:
+  - Store results locally
+  - Only fetch new data since last run
+  - Use incremental sync where available
+</Accordion>
+
+## Configuration Issues
+
+<Accordion title="Configuration files not found">
+  **Symptoms:**
+  - `FileNotFoundError: config/clients.yaml`
+  - Scripts can't find config files
+  - Features don't work as expected
+
+  **Solutions:**
+
+  Check working directory:
+  ```bash
+  # Run scripts from project root
+  cd /path/to/morning-brain-starter
+  .venv/bin/python scripts/calendar_lite.py
+  ```
+
+  Create missing config files:
+  ```bash
+  # Copy examples if they exist
+  cp config/clients.yaml.example config/clients.yaml
+  cp config/asana_order.yaml.example config/asana_order.yaml
+  ```
+
+  Verify directory structure:
+  ```bash
+  ls -la config/
+  # Should show: clients.yaml, asana_order.yaml, calendar.yaml, etc.
+  ```
+
+  Check file permissions:
+  ```bash
+  chmod 644 config/*.yaml
+  ```
+</Accordion>
+
+<Accordion title="YAML syntax errors">
+  **Symptoms:**
+  - `yaml.scanner.ScannerError`
+  - "mapping values are not allowed here"
+  - Config files not parsed correctly
+
+  **Solutions:**
+
+  Validate YAML syntax:
+  ```bash
+  # Install yamllint
+  pip install yamllint
+
+  # Check syntax
+  yamllint config/clients.yaml
+  ```
+
+  Common YAML mistakes:
+
+  ```yaml
+  # ❌ Wrong - missing space after colon
+  clients:
+    tycho:- tycho
+
+  # ✅ Correct
+  clients:
+    tycho:
+      - tycho
+
+  # ❌ Wrong - inconsistent indentation
+  clients:
+    tycho:
+     - tycho  # 1 space
+      - station  # 2 spaces
+
+  # ✅ Correct - consistent 2-space indentation
+  clients:
+    tycho:
+      - tycho
+      - station
+  ```
+
+  Use a YAML validator online:
+  - Copy file contents
+  - Paste into [yamllint.com](http://www.yamllint.com/)
+  - Fix reported errors
+</Accordion>
+
+<Accordion title="Client or project not matching">
+  **Symptoms:**
+  - Events not appearing in client bitácoras
+  - Emails not assigned to correct client
+  - Projects showing as "Unknown"
+
+  **Solutions:**
+
+  Check keyword matching in `config/clients.yaml`:
+  ```yaml
+  clients:
+    tycho:
+      - tycho        # Matches "Tycho", "tycho station", etc.
+      - station      # More keywords = more matches
+  ```
+
+  Test matching manually:
+  ```bash
+  # Print client assignments
+  python scripts/calendar_lite.py --today --match-clients
+  ```
+
+  Common issues:
+  - Keywords are case-sensitive in some contexts (use lowercase)
+  - Need to match substring of event title or email subject
+  - Client folder name must match key in YAML
+
+  Verify directory structure matches config:
+  ```bash
+  # Config says "tycho"
+  ls context/clients/tycho  # Must exist with this exact name
+  ```
+</Accordion>
+
+## Runtime Errors
+
+<Accordion title="Morning routine fails partway through">
+  **Symptoms:**
+  - Script starts but crashes mid-execution
+  - Partial output then error
+  - Some features work, others don't
+
+  **Solutions:**
+
+  Run components individually to isolate issue:
+  ```bash
+  # Test calendar
+  .venv/bin/python scripts/calendar_lite.py --today
+
+  # Test email
+  .venv/bin/python scripts/email_lite.py --list
+
+  # Test Asana
+  .venv/bin/python scripts/asana_lite.py --today
+  ```
+
+  Check logs for specific error:
+  ```bash
+  # Run with verbose output
+  .venv/bin/python run_morning.py 2>&1 | tee morning.log
+  ```
+
+  Common causes:
+  - One API is down (skip and continue)
+  - Rate limit hit (wait and retry)
+  - Config file issue (check YAML syntax)
+  - Missing dependencies (reinstall requirements)
+
+  Create fallback configuration:
+  ```yaml
+  # Use demo mode for problematic API
+  touch config/demo_gmail_fake.yaml
+  ```
+</Accordion>
+
+<Accordion title="Transcription features not working">
+  **Symptoms:**
+  - `--add-transcription-reminder` does nothing
+  - No transcripts imported
+  - Meet API errors
+
+  **Solutions:**
+
+  Verify Meet API setup:
+  ```bash
+  # Check if scope is available
+  .venv/bin/python -c "import os; from scripts.credentials import load_env; load_env(); print(os.getenv('GOOGLE_REFRESH_TOKEN')[:20])"
+  ```
+
+  Ensure APIs are enabled:
+  - Google Meet API
+  - Google Docs API
+
+  Regenerate token with all scopes:
+  ```bash
+  .venv/bin/python scripts/setup_oauth.py --regenerate
+  ```
+
+  Test transcription import:
+  ```bash
+  # Try to import yesterday's transcripts
+  python scripts/calendar_lite.py --import-transcriptions
+  ```
+
+  If no transcripts found:
+  - Verify meeting actually generated a transcript
+  - Check transcript is attached to calendar event
+  - Ensure event matches a client in `clients.yaml`
+
+  See detailed guide: [Meet Transcriptions](/guides/meet-transcriptions)
+</Accordion>
+
+<Accordion title="Bitácoras not updating">
+  **Symptoms:**
+  - New meetings/emails don't appear in bitácoras
+  - Bitácora files empty or outdated
+  - Client logs not being created
+
+  **Solutions:**
+
+  Run bitácora update manually:
+  ```bash
+  .venv/bin/python scripts/bitacora_append.py
+  ```
+
+  Check client configuration:
+  ```bash
+  # Verify clients.yaml exists and is valid
+  cat config/clients.yaml
+
+  # Verify client directories exist
+  ls -la context/clients/
+  ```
+
+  Test client matching:
+  ```bash
+  # See which events match which clients
+  python scripts/calendar_lite.py --today --match-clients
+  ```
+
+  Common issues:
+  - Client name in YAML doesn't match folder name
+  - Keywords don't match event titles
+  - Events already in bitácora (duplicates skipped)
+  - File permissions prevent writing
+
+  Check file permissions:
+  ```bash
+  chmod 755 context/clients/*/
+  chmod 644 context/clients/*/bitacora.md
+  ```
+
+  See detailed guide: [Client Bitácoras](/guides/client-bitacoras)
+</Accordion>
+
+## Getting Help
+
+If these solutions don't resolve your issue:
+
+1. **Check the source code**: All scripts include docstrings and comments
+2. **Review error messages**: They often indicate exactly what's wrong
+3. **Test with demo mode**: Isolate whether issue is with APIs or local code
+4. **Check file paths**: Ensure you're running from project root directory
+5. **Verify Python version**: Must be 3.8 or higher
+
+<Note>
+Most issues are related to OAuth scopes, API enablement, or configuration file syntax. Double-check these areas first.
+</Note>

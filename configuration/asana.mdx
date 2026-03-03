@@ -1,0 +1,398 @@
+---
+title: Asana Integration
+description: Optional task management integration for prioritizing daily work
+---
+
+Asana integration is **optional** but highly useful for displaying your daily tasks in the morning briefing and prioritizing them by day of week.
+
+<Info>
+  If you don't configure Asana, Morning Brain Starter will continue to work with Google Calendar and client bitácoras. The morning routine simply won't include Asana tasks.
+</Info>
+
+## What Asana Integration Enables
+
+With Asana configured, Morning Brain Starter can:
+
+- Display tasks assigned to you that are due today
+- Prioritize tasks by project based on day of week (configured in `config/asana_order.yaml`)
+- Filter tasks by workspace and inbox project
+- Show project names and task details in your morning briefing
+
+## Prerequisites
+
+- An Asana account (free or paid)
+- Access to the workspace(s) where your tasks are stored
+- Your tasks organized by projects in Asana
+
+## Step 1: Get Asana Personal Access Token
+
+<Steps>
+  <Step title="Navigate to Asana settings">
+    1. Log in to [Asana](https://app.asana.com/)
+    2. Click your profile photo in the top-right corner
+    3. Select **My Settings**
+  </Step>
+  
+  <Step title="Create Personal Access Token">
+    1. Click on the **Apps** tab in the left sidebar
+    2. Scroll down to **Personal Access Tokens**
+    3. Click **+ Create new token**
+    4. Enter a description: `Morning Brain Starter`
+    5. Click **Create token**
+  </Step>
+  
+  <Step title="Copy the token">
+    <Warning>
+      Copy the token immediately - you won't be able to see it again!
+    </Warning>
+    
+    The token will be displayed once. Copy it to a secure location temporarily.
+  </Step>
+</Steps>
+
+## Step 2: Configure Environment Variables
+
+<Steps>
+  <Step title="Add token to .env">
+    Edit `resources/secrets/.env` and add your Asana access token:
+    
+    ```bash
+    # Opcional: Asana (dejar vacío si no usas Asana)
+    ASANA_ACCESS_TOKEN=your_personal_access_token_here
+    ```
+  </Step>
+  
+  <Step title="Get Workspace GID (optional)">
+    If you have multiple workspaces, you may want to specify which one to use.
+    
+    **Method 1: From Asana URL**
+    
+    When you switch workspaces in Asana, the URL includes the workspace ID:
+    ```
+    https://app.asana.com/0/1234567890/...
+                            ^^^^^^^^^^
+                            This is your workspace GID
+    ```
+    
+    **Method 2: Via API**
+    
+    ```bash
+    curl -H "Authorization: Bearer YOUR_TOKEN" \
+      https://app.asana.com/api/1.0/workspaces
+    ```
+    
+    Copy the `gid` of the workspace you want to use.
+    
+    Add to `.env`:
+    ```bash
+    ASANA_WORKSPACE_GID=1234567890
+    ```
+    
+    <Note>
+      If not specified, Morning Brain Starter uses the first workspace in your account.
+    </Note>
+  </Step>
+  
+  <Step title="Get Inbox Project GID (optional)">
+    To filter tasks from your "My Tasks" inbox:
+    
+    1. Open **My Tasks** in Asana
+    2. The URL will be: `https://app.asana.com/0/1234567890/...`
+    3. The number after `/0/` is your inbox project GID
+    
+    Add to `.env`:
+    ```bash
+    ASANA_INBOX_PROJECT_GID=1234567890
+    ```
+    
+    <Info>
+      If not specified, Morning Brain Starter lists all tasks assigned to you in the workspace with a due date of today.
+    </Info>
+  </Step>
+  
+  <Step title="Set your display name (optional)">
+    Add your name to personalize the morning briefing:
+    
+    ```bash
+    ASANA_USER_NAME=Your Name
+    ```
+    
+    This is used to display "Tasks for [Your Name]" in the output.
+  </Step>
+</Steps>
+
+## Step 3: Configure Task Prioritization
+
+Morning Brain Starter can prioritize tasks based on project and day of week using `config/asana_order.yaml`.
+
+<Steps>
+  <Step title="Edit asana_order.yaml">
+    Open `config/asana_order.yaml` and customize the project order for each day:
+    
+    ```yaml
+    # Orden de tareas por día de la semana (solo nombres de proyecto, sin clientes).
+    # El morning muestra las tareas ordenadas por esta prioridad.
+    # Claves: Monday, Tuesday, Wednesday, Thursday, Friday (inglés, como devuelve datetime).
+    
+    Monday:
+      - Tycho
+      - Rocinante
+      - Deep Work
+      - Marketing
+      - Management
+      - Personal
+    Tuesday:
+      - MCR
+      - Acme
+      - Marketing
+      - Business Development
+      - Management
+      - Personal
+    Wednesday:
+      - Mao-Kwikowski
+      - Tycho
+      - Deep Work
+      - Marketing
+      - Personal
+    Thursday:
+      - SOPs
+      - Management
+      - Marketing
+      - Personal
+    Friday:
+      - Acme
+      - Mao-Kwikowski
+      - Management
+      - Marketing
+      - Personal
+      - Wrap-up
+    ```
+  </Step>
+  
+  <Step title="Customize for your workflow">
+    **Structure:**
+    - Keys are days of the week: `Monday`, `Tuesday`, `Wednesday`, `Thursday`, `Friday`
+    - Values are lists of Asana project names in priority order
+    - Tasks from projects listed first will appear first in your morning briefing
+    
+    **Tips:**
+    - List client projects first (highest priority)
+    - Follow with internal projects (Deep Work, Marketing, etc.)
+    - End with administrative tasks (Management, Personal)
+    - Adjust daily priorities based on your work rhythm
+  </Step>
+</Steps>
+
+<Note>
+  Project names in `asana_order.yaml` should match your Asana project names exactly. Morning Brain Starter matches tasks to priorities based on these names.
+</Note>
+
+## Environment Variables Reference
+
+### Required for Asana
+
+<ParamField path="ASANA_ACCESS_TOKEN" type="string">
+  Personal Access Token from Asana.
+  
+  **Where to get it**: Asana → My Settings → Apps → Personal Access Tokens
+  
+  **Required**: Yes (to enable Asana integration)
+  
+  **Security**: Keep this token secure. Never commit it to version control.
+</ParamField>
+
+### Optional Variables
+
+<ParamField path="ASANA_WORKSPACE_GID" type="string">
+  The GID of the Asana workspace to use.
+  
+  **Where to get it**: Asana URL when viewing the workspace, or via API `/workspaces` endpoint
+  
+  **Default**: Uses the first workspace in your account if not specified
+  
+  **Example**: `1234567890`
+</ParamField>
+
+<ParamField path="ASANA_INBOX_PROJECT_GID" type="string">
+  The GID of your "My Tasks" inbox project.
+  
+  **Where to get it**: Asana URL when viewing "My Tasks" (the number after `/0/`)
+  
+  **Default**: Lists all tasks assigned to you with today's due date across the workspace
+  
+  **Example**: `1234567890`
+</ParamField>
+
+<ParamField path="ASANA_USER_NAME" type="string">
+  Your display name for the morning briefing.
+  
+  **Where to get it**: Asana → My Profile
+  
+  **Usage**: Shows "Tasks for [Your Name]" in the output
+  
+  **Example**: `ASANA_USER_NAME=Alex Chen`
+</ParamField>
+
+<ParamField path="ASANA_TEAM_GID" type="string">
+  The GID of your team (only needed for scripts that create projects).
+  
+  **Where to get it**: Asana team URL
+  
+  **Usage**: Required if you use `scripts/asana_seed_tasks.py` to create projects in an organization workspace. You must be a full member of the team.
+  
+  **Note**: Not needed for normal morning routine operation
+  
+  **Example**: `1234567890`
+</ParamField>
+
+## Configuration File: asana_order.yaml
+
+Location: `config/asana_order.yaml`
+
+This file controls how tasks are prioritized in your morning briefing based on the day of the week.
+
+### Structure
+
+```yaml
+# Day names must be: Monday, Tuesday, Wednesday, Thursday, Friday
+# (English, as returned by Python's datetime.strftime('%A'))
+
+Monday:
+  - Project Name 1  # Highest priority on Mondays
+  - Project Name 2
+  - Project Name 3  # Lower priority
+
+Tuesday:
+  - Different Project
+  - Another Project
+  
+# ... etc for Wednesday, Thursday, Friday
+```
+
+### How Prioritization Works
+
+1. Morning Brain Starter fetches all tasks assigned to you with today's due date
+2. For each task, it identifies the Asana project the task belongs to
+3. It looks up the current day of week (e.g., "Tuesday") in `asana_order.yaml`
+4. Tasks are sorted based on the project order defined for that day
+5. Tasks from projects not listed in the config appear last
+
+### Example Workflow
+
+**Scenario**: You work on client projects early in the week and internal projects later.
+
+```yaml
+Monday:
+  - Client Alpha      # Monday: Focus on Client Alpha
+  - Client Beta
+  - Internal Tools
+  - Admin
+
+Friday:
+  - Admin             # Friday: Wrap up admin tasks
+  - Internal Tools
+  - Client Alpha
+  - Client Beta
+```
+
+On Monday, tasks from "Client Alpha" appear first. On Friday, "Admin" tasks are prioritized.
+
+## Testing Your Configuration
+
+After configuring Asana:
+
+<Steps>
+  <Step title="Test API connection">
+    Verify your token works by running:
+    
+    ```bash
+    curl -H "Authorization: Bearer YOUR_TOKEN" \
+      https://app.asana.com/api/1.0/users/me
+    ```
+    
+    You should see your user information returned.
+  </Step>
+  
+  <Step title="Run the morning routine">
+    ```bash
+    .venv/bin/python run_morning.py
+    ```
+    
+    Look for an "Asana Tasks" section in the output. If configured correctly, you'll see:
+    - Your tasks due today
+    - Tasks grouped by project
+    - Projects ordered according to `asana_order.yaml` for the current day
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="No Asana tasks appear in morning routine">
+    **Possible causes:**
+    - No tasks assigned to you with today's due date
+    - `ASANA_ACCESS_TOKEN` not set or invalid
+    - Workspace or inbox project GID is incorrect
+    
+    **Solution:**
+    1. Verify tasks exist in Asana with today's due date
+    2. Check that `ASANA_ACCESS_TOKEN` is set in `.env`
+    3. Test the API connection (see Testing section above)
+  </Accordion>
+  
+  <Accordion title="Error: 'Invalid token' or 'Not Authorized'">
+    Your access token may be invalid or revoked.
+    
+    **Solution:**
+    1. Go to Asana → My Settings → Apps → Personal Access Tokens
+    2. Revoke the old token
+    3. Create a new token
+    4. Update `ASANA_ACCESS_TOKEN` in `.env`
+  </Accordion>
+  
+  <Accordion title="Tasks not appearing in expected order">
+    The prioritization in `asana_order.yaml` isn't working as expected.
+    
+    **Solution:**
+    1. Verify project names in `asana_order.yaml` match exactly (case-sensitive) with Asana project names
+    2. Check that you're looking at the correct day's configuration
+    3. Ensure the YAML syntax is correct (proper indentation, dashes before project names)
+  </Accordion>
+  
+  <Accordion title="Script tries to use wrong workspace">
+    Multiple workspaces exist in your account.
+    
+    **Solution:**
+    1. Get your workspace GID (see Step 2 above)
+    2. Set `ASANA_WORKSPACE_GID` in `.env`
+    3. Restart the morning routine
+  </Accordion>
+</AccordionGroup>
+
+## Disabling Asana Integration
+
+To disable Asana integration:
+
+1. Remove or comment out `ASANA_ACCESS_TOKEN` in `.env`:
+   ```bash
+   # ASANA_ACCESS_TOKEN=
+   ```
+
+2. Morning Brain Starter will skip Asana and continue with Calendar and bitácoras
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Client Configuration" icon="users" href="/configuration/clients">
+    Map calendar events to clients
+  </Card>
+  <Card title="Gmail Integration" icon="envelope" href="/configuration/gmail">
+    Optional: Add email context
+  </Card>
+  <Card title="Usage Guide" icon="book" href="/commands/run-morning">
+    Learn how to run morning routine
+  </Card>
+  <Card title="Configuration Overview" icon="gear" href="/configuration/overview">
+    Back to configuration overview
+  </Card>
+</CardGroup>

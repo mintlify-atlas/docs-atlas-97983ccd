@@ -1,0 +1,203 @@
+---
+title: Daily Task Prioritization
+description: Configure day-of-week task ordering for focused productivity
+---
+
+Morning Brain Starter prioritizes your Asana tasks based on the day of the week, ensuring you focus on the right clients and projects each day.
+
+## How It Works
+
+The system uses a day-of-week configuration to sort tasks by project priority. Tasks are grouped by project and ordered according to a priority list that changes each day.
+
+### Configuration File
+
+Task ordering is configured in `config/asana_order.yaml`:
+
+```yaml asana_order.yaml
+# Task order by day of week (project names only, not clients).
+# Morning routine shows tasks ordered by this priority.
+# Keys: Monday, Tuesday, Wednesday, Thursday, Friday (English, as returned by datetime).
+# First items each day: 2 priority client projects; then the rest (Deep Work, Marketing, etc.).
+
+Monday:
+  - Tycho
+  - Rocinante
+  - Deep Work
+  - Marketing
+  - Management
+  - Personal
+Tuesday:
+  - MCR
+  - Acme
+  - Marketing
+  - Business Development
+  - Management
+  - Personal
+Wednesday:
+  - Mao-Kwikowski
+  - Tycho
+  - Deep Work
+  - Marketing
+  - Personal
+Thursday:
+  - SOPs
+  - Management
+  - Marketing
+  - Personal
+Friday:
+  - Acme
+  - Mao-Kwikowski
+  - Management
+  - Marketing
+  - Personal
+  - Wrap-up
+```
+
+<Note>
+Day names must be in English (Monday, Tuesday, etc.) as returned by Python's `datetime` module.
+</Note>
+
+## Client Focus by Day
+
+The configuration supports a strategic weekly rhythm. From `context/addons/asana-order-by-day.md:6-15`:
+
+| Day | Client | Notes |
+|-----|--------|-------|
+| **Monday** | rocinante | Rocinante Corp |
+| **Tuesday** | mao-kwikowski | Mao-Kwikowski |
+| **Wednesday** | mcr | MCR |
+| **Thursday** | tycho | Tycho |
+| **Friday** | acme | Acme |
+
+This table helps you plan which client gets priority attention each day for:
+- Meeting reviews
+- Bitácora updates
+- Project focus time
+- Communication
+
+## Ordering Logic
+
+Tasks are sorted using this algorithm:
+
+<Steps>
+  <Step title="Determine today's priority list">
+    Look up the current day (Monday-Friday) in `asana_order.yaml`
+  </Step>
+  <Step title="Group tasks by project">
+    All tasks are grouped by their Asana project name
+  </Step>
+  <Step title="Sort projects">
+    Projects appear in the order defined in today's priority list. Projects not in the list appear at the end.
+  </Step>
+  <Step title="Sort within projects">
+    Within each project, tasks are sorted alphabetically by name (or by duration if using `[1h]` notation)
+  </Step>
+</Steps>
+
+From `/home/daytona/workspace/source/context/addons/asana-order-by-day.md:19-24`:
+
+1. **By day:** Monday, Tuesday, ... have different project priorities
+2. **Within the day:** Tasks are grouped by project and ordered by the day's list (first project = first in list)
+3. **Within each project:** Alphabetical order by task name
+4. **Optional anchors:** First task like "Good morning", last task "Good evening" if they exist in your list
+
+## Example Scenarios
+
+### Monday Focus
+
+On Monday, your task list will show:
+
+1. All Tycho tasks
+2. All Rocinante tasks
+3. All Deep Work tasks
+4. All Marketing tasks
+5. All Management tasks
+6. All Personal tasks
+7. Any other projects (alphabetically)
+
+### Friday Wrap-Up
+
+On Friday, Wrap-up tasks appear last, perfect for end-of-week reviews:
+
+1. Acme tasks
+2. Mao-Kwikowski tasks
+3. Management tasks
+4. Marketing tasks
+5. Personal tasks
+6. Wrap-up tasks
+7. Other projects
+
+## Matching Project Names
+
+Project names in the YAML can be:
+
+- **Exact matches**: "Tycho" matches project named "Tycho"
+- **Substrings**: "Tycho" also matches "Tycho Website" or "Tycho Q1 Launch"
+- **Case-insensitive**: "tycho", "Tycho", and "TYCHO" all match
+
+<Warning>
+Project names must match your actual Asana project names. If a project isn't recognized, its tasks will appear at the end of the list in alphabetical order.
+</Warning>
+
+## Customizing Your Schedule
+
+### Add a New Day Configuration
+
+Edit `config/asana_order.yaml` to add or modify days:
+
+```yaml
+Saturday:
+  - Personal
+  - Side Projects
+  - Learning
+Sunday:
+  - Planning
+  - Personal
+```
+
+### Change Client Days
+
+Rearrange which clients have focus on which days:
+
+```yaml
+Monday:
+  - ClientA      # Changed priority
+  - ClientB
+  - Internal
+Tuesday:
+  - ClientC      # Different client Tuesday
+  - Internal
+```
+
+### Add Non-Client Categories
+
+Include internal work categories:
+
+```yaml
+Thursday:
+  - SOPs                    # Standard Operating Procedures
+  - Documentation
+  - Team Meetings
+  - Management
+```
+
+## Integration with Morning Routine
+
+The `asana_lite` script automatically applies this ordering when fetching tasks for the morning routine.
+
+When the morning agent shows your task list, it:
+1. Reads today's priority order from the YAML
+2. Fetches all due/incomplete tasks from Asana
+3. Sorts them by project according to the day's priority
+4. Presents them in the morning briefing
+
+## No Configuration?
+
+If `config/asana_order.yaml` doesn't exist or today isn't defined:
+- Tasks appear in default order (typically alphabetical by project)
+- All functionality still works, just without prioritization
+
+## Related Configuration
+
+- [Client Bitácoras](/guides/client-bitacoras) - Client names should match between `clients.yaml` and `asana_order.yaml`
+- [Demo Mode](/guides/demo-mode) - Test task ordering with demo data

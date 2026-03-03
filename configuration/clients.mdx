@@ -1,0 +1,652 @@
+---
+title: Client Bitácora Configuration
+description: Configure client mappings and project structure for contextual meeting preparation
+---
+
+Client bitácora (logbook) configuration enables Morning Brain Starter to identify which calendar events correspond to which clients, and provide relevant context for each meeting.
+
+## What Client Configuration Enables
+
+With clients properly configured, Morning Brain Starter can:
+
+- Automatically identify client meetings from calendar event titles
+- Display relevant client context (bitácoras, project notes) before meetings
+- Map calendar events to client projects
+- Organize meeting notes by client and project
+- Track client work over time
+
+## Configuration Overview
+
+Client configuration involves two main components:
+
+1. **Keyword Mapping** (`config/clients.yaml`) - Maps calendar event keywords to client names
+2. **Client Folder Structure** (`context/clients/`) - Stores client information, bitácoras, and project details
+
+## Step 1: Configure Client Keyword Mapping
+
+The `config/clients.yaml` file maps calendar event title keywords to client folder names.
+
+<Steps>
+  <Step title="Open clients.yaml">
+    Open `config/clients.yaml` in your editor:
+    
+    ```yaml
+    # Mapeo de nombre de cliente -> substrings para reconocer el evento en el título del calendario.
+    # Si el título del evento contiene alguno de los substrings, se asigna a ese cliente.
+    # Los nombres deben coincidir con las carpetas en context/clients/.
+    
+    clients:
+      tycho:
+        - tycho
+      rocinante:
+        - rocinante
+      mao-kwikowski:
+        - mao
+        - kwikowski
+      mcr:
+        - mcr
+      acme:
+        - acme
+    ```
+  </Step>
+  
+  <Step title="Add your clients">
+    For each client, define:
+    - **Key**: Client folder name (must match directory in `context/clients/`)
+    - **Values**: List of keywords that might appear in calendar event titles
+    
+    **Example:**
+    ```yaml
+    clients:
+      globex-corp:
+        - globex
+        - globex corp
+        - globex corporation
+      initech:
+        - initech
+        - initech inc
+      hooli:
+        - hooli
+        - hooli xyz
+    ```
+  </Step>
+  
+  <Step title="Use multiple keywords per client">
+    Add variations and abbreviations to catch all possible event title formats:
+    
+    ```yaml
+    clients:
+      wayne-enterprises:
+        - wayne
+        - wayne ent
+        - "wayne enterprises"  # Quote if contains spaces
+        - WE                    # Abbreviation
+    ```
+  </Step>
+</Steps>
+
+<Info>
+  **Matching is case-insensitive**: Keywords are matched without regard to case. "Acme", "ACME", and "acme" will all match.
+</Info>
+
+<Warning>
+  Client folder names (keys) must:
+  - Match exactly with directory names in `context/clients/`
+  - Use lowercase with hyphens (e.g., `mao-kwikowski`, not `Mao Kwikowski`)
+  - Contain no spaces or special characters (except hyphens)
+</Warning>
+
+## Step 2: Create Client Folder Structure
+
+Each client has a dedicated folder in `context/clients/` with specific files and structure.
+
+### Folder Structure
+
+```
+context/clients/
+├── acme/
+│   ├── client.yaml          # Client metadata
+│   ├── bitacora.md          # Client logbook/notes
+│   └── projects/
+│       └── acme-com/        # Project folder
+│           ├── project.yaml # Project metadata
+│           ├── matches.yaml # Calendar/Asana mapping
+│           └── meetings/    # Meeting notes
+├── tycho/
+│   ├── client.yaml
+│   ├── bitacora.md
+│   └── projects/
+│       └── ...
+└── ...
+```
+
+<Steps>
+  <Step title="Create client directory">
+    Create a folder for each client in `context/clients/`:
+    
+    ```bash
+    mkdir -p context/clients/your-client-name
+    ```
+    
+    The folder name must match the key in `config/clients.yaml`.
+  </Step>
+  
+  <Step title="Create client.yaml">
+    Create `context/clients/your-client-name/client.yaml`:
+    
+    ```yaml
+    id: your-client-name
+    name: Your Client Display Name
+    description: "Brief description of the client"
+    website: https://client-website.com
+    # Projects are discovered by scanning projects/ directory
+    ```
+    
+    **Real example:**
+    ```yaml
+    id: acme
+    name: Acme
+    description: "Cliente demo – Acme (ficción)"
+    website: https://example.com
+    # Projects are discovered by scanning projects/ directory
+    ```
+  </Step>
+  
+  <Step title="Create bitacora.md">
+    Create `context/clients/your-client-name/bitacora.md` for client notes:
+    
+    ```markdown
+    # Bitácora: Your Client Name
+    
+    ## 2026-03-03 - Initial Meeting
+    
+    - Discussed project goals
+    - Agreed on timeline
+    - Next steps: ...
+    
+    ## 2026-02-28 - Discovery Call
+    
+    - Client background
+    - Pain points identified
+    - Budget discussion
+    ```
+    
+    <Note>
+      Use reverse chronological order (newest entries first) for easier reading during morning prep.
+    </Note>
+  </Step>
+  
+  <Step title="Create projects directory">
+    Create the projects directory:
+    
+    ```bash
+    mkdir -p context/clients/your-client-name/projects
+    ```
+  </Step>
+</Steps>
+
+## Step 3: Configure Client Projects
+
+Each client can have multiple projects. Projects help organize work and meetings by specific engagements.
+
+<Steps>
+  <Step title="Create project directory">
+    For each project, create a folder:
+    
+    ```bash
+    mkdir -p context/clients/your-client-name/projects/project-slug
+    ```
+    
+    **Example:**
+    ```bash
+    mkdir -p context/clients/acme/projects/acme-com
+    ```
+  </Step>
+  
+  <Step title="Create project.yaml">
+    Create `project.yaml` with project metadata:
+    
+    ```yaml
+    id: project-slug
+    name: Project Display Name
+    type: website  # or: app, api, consultation, etc.
+    url: https://project-url.com
+    description: "Project description"
+    ```
+    
+    **Real example:**
+    ```yaml
+    id: acme-com
+    name: Acme
+    type: website
+    url: https://example.com
+    description: "Sitio demo – Acme"
+    ```
+  </Step>
+  
+  <Step title="Create matches.yaml">
+    Configure how calendar events and Asana tasks map to this project:
+    
+    ```yaml
+    # Mapeo calendario/Asana para este proyecto
+    calendar:
+      matching:
+        keywords:
+          - project keyword
+          - another keyword
+    asana:
+      sync_enabled: false  # or true if using Asana
+      # project_gid: "1234567890"  # Optional: Asana project GID
+    ```
+    
+    **Real example:**
+    ```yaml
+    # Mapeo calendario/Asana para demo. Sin GIDs reales.
+    calendar:
+      matching:
+        keywords:
+          - acme
+    asana:
+      sync_enabled: false
+    ```
+  </Step>
+  
+  <Step title="Create meetings directory">
+    Create a folder for meeting notes:
+    
+    ```bash
+    mkdir -p context/clients/your-client-name/projects/project-slug/meetings
+    ```
+    
+    Meeting notes are automatically organized by date when using Morning Brain Starter's meeting tools.
+  </Step>
+</Steps>
+
+## Client Configuration Files Reference
+
+### config/clients.yaml
+
+Location: `config/clients.yaml`
+
+Maps calendar event keywords to client folder names.
+
+**Structure:**
+```yaml
+clients:
+  <client-folder-name>:
+    - keyword1
+    - keyword2
+    - keyword3
+```
+
+**How it works:**
+1. Morning Brain Starter scans today's calendar events
+2. For each event, it checks the title against all keywords
+3. If a keyword matches (case-insensitive), the event is associated with that client
+4. Client context (bitácora, project info) is loaded for that event
+
+### context/clients/[client]/client.yaml
+
+Location: `context/clients/<client-name>/client.yaml`
+
+Defines client metadata.
+
+<ParamField path="id" type="string" required>
+  Unique identifier for the client. Must match the directory name.
+  
+  **Example**: `acme`
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  Display name for the client.
+  
+  **Example**: `Acme Corporation`
+</ParamField>
+
+<ParamField path="description" type="string">
+  Brief description of the client or engagement.
+  
+  **Example**: `E-commerce platform for industrial supplies`
+</ParamField>
+
+<ParamField path="website" type="string">
+  Client's website URL.
+  
+  **Example**: `https://acme.example.com`
+</ParamField>
+
+### context/clients/[client]/bitacora.md
+
+Location: `context/clients/[client-name]/bitacora.md`
+
+Free-form markdown file for client notes, meeting summaries, and historical context.
+
+**Best practices:**
+- Use reverse chronological order (newest first)
+- Include date headers: `## YYYY-MM-DD - Meeting Title`
+- Keep entries concise but informative
+- Include action items and next steps
+- Reference project names when relevant
+
+**Example:**
+```markdown
+# Bitácora: Acme Corporation
+
+## 2026-03-03 - Q1 Planning
+
+- Reviewed Q1 objectives
+- Discussed new feature priorities
+- **Action**: Send proposal by Friday
+- **Next meeting**: March 10, 2026
+
+## 2026-02-28 - Status Update
+
+- Project is on schedule
+- Launch delayed to April 15 (was April 1)
+- Budget increase approved
+```
+
+### context/clients/[client]/projects/[project]/project.yaml
+
+Location: `context/clients/[client]/projects/[project]/project.yaml`
+
+Defines project metadata.
+
+<ParamField path="id" type="string" required>
+  Unique identifier for the project. Must match the directory name.
+  
+  **Example**: `acme-com`
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  Display name for the project.
+  
+  **Example**: `Acme.com Redesign`
+</ParamField>
+
+<ParamField path="type" type="string">
+  Type of project.
+  
+  **Common values**: `website`, `app`, `api`, `consultation`, `maintenance`
+  
+  **Example**: `website`
+</ParamField>
+
+<ParamField path="url" type="string">
+  Project URL (production site, staging, repository, etc.).
+  
+  **Example**: `https://acme.com`
+</ParamField>
+
+<ParamField path="description" type="string">
+  Brief project description.
+  
+  **Example**: `Complete redesign of corporate website with e-commerce integration`
+</ParamField>
+
+### context/clients/[client]/projects/[project]/matches.yaml
+
+Location: `context/clients/[client]/projects/[project]/matches.yaml`
+
+Configures how calendar events and Asana tasks are matched to this project.
+
+<ParamField path="calendar.matching.keywords" type="array[string]">
+  List of keywords to match in calendar event titles for this specific project.
+  
+  **Note**: This is in addition to the client-level keywords in `config/clients.yaml`.
+  
+  **Example:**
+  ```yaml
+  calendar:
+    matching:
+      keywords:
+        - acme redesign
+        - acme website
+  ```
+</ParamField>
+
+<ParamField path="asana.sync_enabled" type="boolean" default="false">
+  Whether to sync Asana tasks for this project.
+  
+  **Example:**
+  ```yaml
+  asana:
+    sync_enabled: true
+    project_gid: "1234567890"
+  ```
+</ParamField>
+
+<ParamField path="asana.project_gid" type="string">
+  Asana project GID to sync tasks from (if `sync_enabled` is true).
+  
+  **Where to get it**: Asana project URL contains the GID
+  
+  **Example**: `1234567890`
+</ParamField>
+
+## Example: Complete Client Setup
+
+Here's a complete example for a fictional client "Initech":
+
+<Steps>
+  <Step title="Add to clients.yaml">
+    ```yaml
+    clients:
+      initech:
+        - initech
+        - initech inc
+    ```
+  </Step>
+  
+  <Step title="Create directory structure">
+    ```bash
+    mkdir -p context/clients/initech/projects/tps-reports
+    mkdir -p context/clients/initech/projects/tps-reports/meetings
+    ```
+  </Step>
+  
+  <Step title="Create client.yaml">
+    ```yaml
+    # context/clients/initech/client.yaml
+    id: initech
+    name: Initech Inc.
+    description: "Enterprise software solutions"
+    website: https://initech.example.com
+    ```
+  </Step>
+  
+  <Step title="Create bitacora.md">
+    ```markdown
+    # Bitácora: Initech Inc.
+    
+    ## 2026-03-03 - Kickoff Meeting
+    
+    - Met with Bill Lumbergh (VP Engineering)
+    - Discussed TPS report automation project
+    - Timeline: 8 weeks
+    - Budget: $50k
+    - **Action**: Send SOW by EOW
+    ```
+  </Step>
+  
+  <Step title="Create project.yaml">
+    ```yaml
+    # context/clients/initech/projects/tps-reports/project.yaml
+    id: tps-reports
+    name: TPS Report Automation
+    type: app
+    url: https://tps.initech.example.com
+    description: "Automated TPS report generation and distribution system"
+    ```
+  </Step>
+  
+  <Step title="Create matches.yaml">
+    ```yaml
+    # context/clients/initech/projects/tps-reports/matches.yaml
+    calendar:
+      matching:
+        keywords:
+          - tps
+          - tps reports
+    asana:
+      sync_enabled: true
+      project_gid: "1234567890"
+    ```
+  </Step>
+</Steps>
+
+## Testing Your Client Configuration
+
+After configuring clients:
+
+<Steps>
+  <Step title="Verify folder structure">
+    Check that all folders exist:
+    ```bash
+    ls -R context/clients/your-client-name
+    ```
+    
+    You should see:
+    - `client.yaml`
+    - `bitacora.md`
+    - `projects/` directory
+    - At least one project with `project.yaml` and `matches.yaml`
+  </Step>
+  
+  <Step title="Test keyword matching">
+    Create a test calendar event with a client keyword in the title, then run:
+    ```bash
+    .venv/bin/python run_morning.py
+    ```
+    
+    Verify that:
+    - The event is identified as a client meeting
+    - Client context (bitácora) is displayed
+    - Project information is shown
+  </Step>
+  
+  <Step title="Check for errors">
+    Look for error messages related to:
+    - Missing YAML files
+    - Invalid YAML syntax
+    - Folder name mismatches
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Calendar events not matching clients">
+    **Possible causes:**
+    - Keywords in `config/clients.yaml` don't match event titles
+    - Client folder name doesn't match the key in `clients.yaml`
+    - Event title uses abbreviation not listed in keywords
+    
+    **Solution:**
+    1. Check event titles in your calendar
+    2. Add more keyword variations to `config/clients.yaml`
+    3. Verify folder names match exactly (case-sensitive for folders)
+  </Accordion>
+  
+  <Accordion title="Client context not loading">
+    **Possible causes:**
+    - `client.yaml` missing or invalid
+    - `bitacora.md` doesn't exist
+    - Folder structure incorrect
+    
+    **Solution:**
+    1. Verify all required files exist:
+       - `context/clients/[client]/client.yaml`
+       - `context/clients/[client]/bitacora.md`
+    2. Check YAML syntax is valid
+    3. Ensure folder names match configuration
+  </Accordion>
+  
+  <Accordion title="YAML parsing errors">
+    **Possible causes:**
+    - Invalid YAML syntax (wrong indentation, missing colons, etc.)
+    - Special characters not quoted
+    
+    **Solution:**
+    1. Use a YAML validator to check syntax
+    2. Quote strings with special characters:
+       ```yaml
+       keywords:
+         - "client: name"  # Colon must be quoted
+       ```
+    3. Use consistent indentation (2 spaces recommended)
+  </Accordion>
+  
+  <Accordion title="Project not appearing for client">
+    **Possible causes:**
+    - Project folder not in `context/clients/[client]/projects/`
+    - `project.yaml` missing or invalid
+    - Folder name mismatch with `id` in `project.yaml`
+    
+    **Solution:**
+    1. Verify project folder location
+    2. Check `project.yaml` exists and has required fields (`id`, `name`)
+    3. Ensure folder name matches `id` in `project.yaml`
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Naming Conventions">
+    **Client folder names:**
+    - Use lowercase
+    - Use hyphens for spaces: `wayne-enterprises`
+    - Keep short but descriptive: `globex-corp` not `the-globex-corporation-inc`
+    
+    **Project folder names:**
+    - Use lowercase
+    - Use hyphens for spaces: `tps-reports`
+    - Include client name if helpful: `acme-website` vs just `website`
+  </Accordion>
+  
+  <Accordion title="Keyword Strategy">
+    **Include variations:**
+    - Full name: `Wayne Enterprises`
+    - Shortened: `Wayne`
+    - Abbreviations: `WE`
+    - Common misspellings
+    
+    **Be specific enough:**
+    - Avoid overly generic keywords that might match unrelated events
+    - Use multi-word phrases when needed: `acme project` not just `project`
+  </Accordion>
+  
+  <Accordion title="Bitácora Maintenance">
+    **Keep it current:**
+    - Update after every client interaction
+    - Add entries before meetings as preparation notes
+    
+    **Structure entries:**
+    - Use consistent date format: `YYYY-MM-DD`
+    - Include meeting type in header: `## 2026-03-03 - Sprint Planning`
+    - Separate notes, decisions, and action items
+    
+    **Keep it concise:**
+    - Focus on key points and decisions
+    - Link to detailed docs elsewhere if needed
+    - Archive old entries to a separate file yearly
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Usage Guide" icon="book" href="/commands/run-morning">
+    Learn how to run the morning routine
+  </Card>
+  <Card title="Meeting Tools" icon="video" href="/guides/meet-transcriptions">
+    Prepare for and document meetings
+  </Card>
+  <Card title="Configuration Overview" icon="gear" href="/configuration/overview">
+    Review all configuration options
+  </Card>
+  <Card title="Google Calendar Setup" icon="calendar" href="/configuration/google-calendar">
+    Configure calendar integration
+  </Card>
+</CardGroup>

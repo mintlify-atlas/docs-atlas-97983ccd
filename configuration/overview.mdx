@@ -1,0 +1,176 @@
+---
+title: Configuration Overview
+description: Understanding Morning Brain Starter's configuration structure and workflow
+---
+
+Morning Brain Starter uses a combination of environment variables and YAML configuration files to manage integrations and customize behavior.
+
+## Configuration File Locations
+
+Morning Brain Starter stores configuration in two main locations:
+
+<Card title="Environment Variables" icon="key">
+  **Location**: `resources/secrets/.env`
+  
+  Contains sensitive credentials and API tokens:
+  - Google OAuth credentials (Client ID, Secret, Refresh Token)
+  - Asana access token (optional)
+  - Calendar email override (optional)
+</Card>
+
+<Card title="YAML Configuration Files" icon="file-code">
+  **Location**: `config/` directory
+  
+  Contains service and client configuration:
+  - `calendar.yaml` - Calendar selection
+  - `email.yaml` - Gmail integration settings
+  - `asana_order.yaml` - Task prioritization by day
+  - `clients.yaml` - Client name-to-keyword mapping
+</Card>
+
+<Warning>
+  Never commit `resources/secrets/.env` to version control. This file contains sensitive credentials.
+</Warning>
+
+## Mandatory vs Optional Integrations
+
+### Mandatory
+
+<AccordionGroup>
+  <Accordion title="Google Calendar" icon="calendar">
+    Google Calendar integration is **required** for Morning Brain Starter to function. The tool reads your daily schedule, identifies meetings, and helps you prepare.
+    
+    **Required setup:**
+    - Google Cloud project with Calendar API enabled
+    - OAuth 2.0 credentials (Client ID and Secret)
+    - Refresh token generated via `setup_oauth.py`
+    
+    See [Google Calendar Setup](/configuration/google-calendar) for detailed instructions.
+  </Accordion>
+</AccordionGroup>
+
+### Optional
+
+<AccordionGroup>
+  <Accordion title="Asana" icon="check">
+    Integrate with Asana to sync tasks and prioritize your daily work.
+    
+    **What it enables:**
+    - Display today's tasks in morning briefing
+    - Task prioritization by day of week
+    - Workspace and project filtering
+    
+    See [Asana Integration](/configuration/asana) for setup.
+  </Accordion>
+  
+  <Accordion title="Gmail" icon="envelope">
+    Read recent emails to include in your morning context.
+    
+    **What it enables:**
+    - Recent email summaries
+    - Inbox filtering by label
+    - Configurable message count and date range
+    
+    See [Gmail Integration](/configuration/gmail) for setup.
+  </Accordion>
+</AccordionGroup>
+
+## Configuration Workflow
+
+Follow this recommended workflow to configure Morning Brain Starter:
+
+<Steps>
+  <Step title="Copy environment template">
+    Copy `.env.example` to `resources/secrets/.env`:
+    
+    ```bash
+    mkdir -p resources/secrets
+    cp .env.example resources/secrets/.env
+    ```
+  </Step>
+  
+  <Step title="Set up Google Cloud project">
+    Create a Google Cloud project and enable required APIs:
+    - Google Calendar API (required)
+    - Gmail API (optional)
+    - Google Docs API (optional, for reading transcriptions)
+    - Google Meet API (optional, for enabling transcriptions)
+    
+    See [Google Calendar Setup](/configuration/google-calendar) for detailed steps.
+  </Step>
+  
+  <Step title="Configure OAuth credentials">
+    Create OAuth 2.0 credentials in Google Cloud Console and add them to `.env`:
+    - `GOOGLE_CLIENT_ID`
+    - `GOOGLE_CLIENT_SECRET`
+    
+    Then run the OAuth setup script to generate your refresh token:
+    
+    ```bash
+    .venv/bin/python scripts/setup_oauth.py
+    ```
+  </Step>
+  
+  <Step title="Configure calendar selection (optional)">
+    Edit `config/calendar.yaml` to specify which calendars to monitor. If not configured, only your primary calendar is used.
+    
+    ```yaml
+    calendars:
+      - Work
+      - Personal
+    ```
+  </Step>
+  
+  <Step title="Set up optional integrations">
+    Configure Asana and Gmail if desired:
+    - [Asana Integration](/configuration/asana) - Add `ASANA_ACCESS_TOKEN` to `.env`
+    - [Gmail Integration](/configuration/gmail) - Already configured via OAuth, just customize `config/email.yaml`
+  </Step>
+  
+  <Step title="Configure client mappings">
+    Edit `config/clients.yaml` to map calendar event keywords to client names:
+    
+    ```yaml
+    clients:
+      acme:
+        - acme
+      tycho:
+        - tycho
+    ```
+    
+    See [Client Bitácora Configuration](/configuration/clients) for details.
+  </Step>
+  
+  <Step title="Test your configuration">
+    Run the morning routine to verify everything works:
+    
+    ```bash
+    .venv/bin/python run_morning.py
+    ```
+  </Step>
+</Steps>
+
+## Environment Variable Reference
+
+For a complete reference of all environment variables, see `.env.example` in the project root or the specific integration pages:
+
+- [Google Calendar variables](/configuration/google-calendar)
+- [Asana variables](/configuration/asana)
+- [Gmail variables](/configuration/gmail)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Google Calendar Setup" icon="calendar" href="/configuration/google-calendar">
+    Set up mandatory Google Calendar integration
+  </Card>
+  <Card title="Client Configuration" icon="users" href="/configuration/clients">
+    Configure client mappings and bitácoras
+  </Card>
+  <Card title="Asana Integration" icon="check" href="/configuration/asana">
+    Optional task management integration
+  </Card>
+  <Card title="Gmail Integration" icon="envelope" href="/configuration/gmail">
+    Optional email integration
+  </Card>
+</CardGroup>

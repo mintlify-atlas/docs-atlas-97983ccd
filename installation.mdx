@@ -1,0 +1,166 @@
+---
+title: Installation
+description: Install Morning Brain Starter with Python and set up your development environment
+---
+
+## Prerequisites
+
+<Steps>
+  <Step title="Python 3.9 or higher">
+    Morning Brain Starter requires Python 3.9+. Check your Python version:
+
+    <CodeGroup>
+      ```bash macOS/Linux
+      python3 --version
+      ```
+
+      ```bash Windows
+      python --version
+      ```
+    </CodeGroup>
+
+    <Note>
+      On macOS and Linux, the command is typically `python3`. On Windows, it's usually `python`. If the command isn't found, [download Python](https://www.python.org/downloads/) from the official website.
+    </Note>
+
+    <Warning>
+      On Windows, make sure to check "Add Python to PATH" during installation.
+    </Warning>
+  </Step>
+
+  <Step title="Google account">
+    You'll need a Google account for Calendar access. This is the only required integration—Asana and Gmail are optional.
+  </Step>
+
+  <Step title="Optional: Asana account">
+    If you want task management features, you'll need an Asana account and a Personal Access Token.
+  </Step>
+
+  <Step title="Optional: Gmail">
+    Email sync uses the same Google OAuth as Calendar, so no additional setup is required beyond granting Gmail permissions during OAuth.
+  </Step>
+</Steps>
+
+## Get your copy of the project
+
+You have two options for getting the code:
+
+<Tabs>
+  <Tab title="Fork (recommended)">
+    Fork the repository to your own GitHub account. This lets you customize the code and contribute back if you want.
+
+    1. On the GitHub project page, click **Fork** (top right)
+    2. Choose your account—GitHub will create a copy under your username
+    3. Clone your fork:
+
+    ```bash
+    git clone https://github.com/your-username/morning-brain-starter.git
+    cd morning-brain-starter
+    ```
+  </Tab>
+
+  <Tab title="Local only">
+    If you just want to use it locally without GitHub integration:
+
+    1. On the repo page: **Code** → **Download ZIP**, then extract it
+    2. Or clone once without forking:
+
+    ```bash
+    git clone https://github.com/<account>/morning-brain-starter.git
+    cd morning-brain-starter
+    ```
+
+    Replace `<account>` with the GitHub user or organization hosting the repo.
+  </Tab>
+</Tabs>
+
+## Install dependencies
+
+<Steps>
+  <Step title="Create a virtual environment">
+    A virtual environment keeps this project's dependencies isolated from your system Python.
+
+    <CodeGroup>
+      ```bash macOS/Linux
+      python3 -m venv .venv
+      ```
+
+      ```bash Windows
+      python -m venv .venv
+      ```
+    </CodeGroup>
+
+    This creates a `.venv` directory in your project root.
+  </Step>
+
+  <Step title="Activate the virtual environment">
+    <CodeGroup>
+      ```bash macOS/Linux
+      source .venv/bin/activate
+      ```
+
+      ```bash Windows
+      .venv\Scripts\activate
+      ```
+    </CodeGroup>
+
+    Your terminal prompt will change to show `(.venv)` when the environment is active.
+  </Step>
+
+  <Step title="Install required packages">
+    Install all dependencies from `requirements.txt`:
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+    This installs:
+    - `google-api-python-client` - Google Calendar and Gmail APIs
+    - `google-auth-oauthlib` - OAuth authentication
+    - `google-auth-httplib2` - HTTP library for Google APIs
+    - `asana` - Asana API client (optional integration)
+    - `python-dotenv` - Environment variable management
+    - `PyYAML` - YAML configuration file support
+  </Step>
+</Steps>
+
+## Directory structure
+
+After installation, your project structure looks like this:
+
+```
+morning-brain-starter/
+├── .venv/                  # Virtual environment (created by you)
+├── config/
+│   ├── clients.yaml        # Client name mappings for logs
+│   ├── calendar.yaml       # Calendar names to check
+│   ├── email.yaml          # Email sync configuration
+│   └── asana_order.yaml    # Task ordering by day of week
+├── context/
+│   └── clients/            # Per-client log files (created at runtime)
+├── resources/
+│   └── secrets/            # Your credentials (not in version control)
+│       └── .env            # Environment variables
+├── scripts/
+│   ├── setup_oauth.py      # OAuth setup script
+│   ├── calendar_lite.py    # Calendar operations
+│   ├── asana_lite.py       # Asana operations
+│   └── email_lite.py       # Email operations
+├── run_morning.py          # Main morning routine script
+├── requirements.txt        # Python dependencies
+└── .env.example            # Template for your .env file
+```
+
+<Info>
+  The `resources/secrets/` directory is excluded from version control (`.gitignore`). Your credentials stay private.
+</Info>
+
+## Next steps
+
+<Card
+  title="Quickstart"
+  icon="rocket"
+  href="/quickstart"
+>
+  Set up your credentials and run your first morning routine
+</Card>

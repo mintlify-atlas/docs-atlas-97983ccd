@@ -1,0 +1,144 @@
+---
+title: 'run-morning'
+description: 'Execute the complete morning routine or individual steps'
+---
+
+The `run-morning.py` script orchestrates your complete morning productivity routine by executing a sequence of 7 steps. Each step has an equivalent CLI command that can be run independently.
+
+## Command Syntax
+
+```bash
+.venv/bin/python run_morning.py [OPTIONS]
+```
+
+## Options
+
+<ParamField path="--step" type="integer" default="None">
+  Execute only the specified step (1-7). If not provided, runs all steps in sequence.
+  
+  **Choices:** `1`, `2`, `3`, `4`, `5`, `6`, `7`
+</ParamField>
+
+<ParamField path="--show-cli" type="flag">
+  Print the equivalent CLI commands for each step without executing them. Useful for learning the underlying commands or creating custom workflows.
+</ParamField>
+
+## Morning Routine Steps
+
+The morning routine consists of 7 sequential steps:
+
+1. **Calendar (today + Meet + transcriptions)**: Fetch today's calendar events, add Meet links, and add transcription reminders
+2. **Asana (move yesterday to today)**: Move pending tasks from yesterday to today
+3. **Asana (list today's tasks)**: Display all tasks due today
+4. **Email**: Sync recent emails from Gmail
+5. **Transcriptions (import yesterday)**: Import meeting transcriptions from yesterday's events
+6. **Asana (completed tasks → bitácora)**: Add completed tasks from yesterday to client log files
+7. **Bitácoras**: Process and organize log entries
+
+## Usage Examples
+
+### Run the complete morning routine
+
+```bash
+.venv/bin/python run_morning.py
+```
+
+**Expected Output:**
+```
+=== Morning routine ===
+
+[Paso 1] Calendario (hoy + Meet + transcripciones)
+  CLI: .venv/bin/python scripts/calendar_lite.py --today --add-meet --add-meet-my-events-only --add-transcription-reminder
+
+[Paso 2] Asana (mover tareas de ayer a hoy)
+  CLI: .venv/bin/python scripts/asana_lite.py --move-yesterday-to-today
+
+...
+
+---
+Hecho con ayuda del morning-brain-starter
+```
+
+### Run only a specific step
+
+```bash
+# Run only step 3 (list Asana tasks)
+.venv/bin/python run_morning.py --step 3
+```
+
+**Expected Output:**
+```
+=== Morning routine ===
+
+[Paso 3] Asana (listar tareas de hoy)
+  CLI: .venv/bin/python scripts/asana_lite.py
+
+Tareas hoy: 5
+  Update documentation
+  Review pull requests
+  Client meeting prep
+  ...
+```
+
+### Show CLI commands without executing
+
+```bash
+.venv/bin/python run_morning.py --show-cli
+```
+
+**Expected Output:**
+```
+Comandos CLI de la morning routine (desde la raíz del proyecto):
+
+  Paso 1 – Calendario (hoy + Meet + transcripciones):
+    .venv/bin/python scripts/calendar_lite.py --today --add-meet --add-meet-my-events-only --add-transcription-reminder
+
+  Paso 2 – Asana (mover tareas de ayer a hoy):
+    .venv/bin/python scripts/asana_lite.py --move-yesterday-to-today
+
+  ...
+```
+
+### Run multiple specific steps
+
+To run multiple non-consecutive steps, you can chain commands:
+
+```bash
+# Run steps 1 and 3 only
+.venv/bin/python run_morning.py --step 1 && .venv/bin/python run_morning.py --step 3
+```
+
+## Exit Codes
+
+- **0**: Success - all steps completed successfully
+- **Non-zero**: Failure - one of the steps failed (the script exits immediately when a step fails)
+
+<Note>
+  The routine stops at the first failed step. If step 2 fails, steps 3-7 won't run.
+</Note>
+
+## Related Commands
+
+- [calendar](/commands/calendar) - Individual calendar operations
+- [asana](/commands/asana) - Individual Asana task operations
+- [email](/commands/email) - Email sync operations
+
+## Technical Details
+
+The script executes commands using `subprocess.run()` with `shell=True`, running from the project root directory. Each step's command is defined in the `_CLI_COMMANDS` dictionary:
+
+```python
+_CLI_COMMANDS = {
+    1: ".venv/bin/python scripts/calendar_lite.py --today --add-meet --add-meet-my-events-only --add-transcription-reminder",
+    2: ".venv/bin/python scripts/asana_lite.py --move-yesterday-to-today",
+    3: ".venv/bin/python scripts/asana_lite.py",
+    4: ".venv/bin/python scripts/email_lite.py",
+    5: ".venv/bin/python scripts/calendar_lite.py --import-transcriptions",
+    6: ".venv/bin/python scripts/asana_lite.py --completed-yesterday-to-bitacora",
+    7: ".venv/bin/python scripts/morning_step_bitacora.py",
+}
+```
+
+<Tip>
+  Use `--show-cli` to see the exact commands for each step, then copy them to create custom workflows or integrate with other tools.
+</Tip>

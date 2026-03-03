@@ -1,0 +1,80 @@
+---
+title: Morning Brain Starter
+description: A lightweight CLI tool for morning productivity routines with Google Calendar, task management, and email context
+---
+
+## Start your day with clarity
+
+Morning Brain Starter is a Python CLI tool that helps you kickstart your morning with a comprehensive overview of your day. Get a summary of today's meetings from Google Calendar, maintain client logs, and optionally integrate tasks from Asana and email context from Gmail.
+
+**Google Calendar is required.** The tool works perfectly with just Calendar—showing today's meetings, recent events, and maintaining client logs. Asana and Gmail integrations are completely optional.
+
+<CardGroup cols={2}>
+  <Card
+    title="Installation"
+    icon="download"
+    href="/installation"
+  >
+    Set up Python, create a virtual environment, and install dependencies
+  </Card>
+  <Card
+    title="Quickstart"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Run your first morning routine in under 5 minutes
+  </Card>
+  <Card
+    title="Configuration"
+    icon="gear"
+    href="/configuration/overview"
+  >
+    Configure calendars, clients, and optional integrations
+  </Card>
+  <Card
+    title="Run morning routine"
+    icon="sun"
+    href="/commands/run-morning"
+  >
+    Execute your complete morning routine with a single command
+  </Card>
+</CardGroup>
+
+## Key features
+
+**Meeting summaries**
+View today's events and recent meetings from your Google Calendar with automatic Google Meet links added where missing.
+
+**Client logs**
+Meetings are automatically accumulated in per-client log files based on your configuration, creating a searchable history of client interactions.
+
+**Optional task management**
+If you use Asana, list and prioritize your tasks for the day, with automatic ordering by day of the week.
+
+**Optional email context**
+If you use Gmail, sync recent emails to get additional context for your morning planning.
+
+**Transcription management**
+Automatically enable transcription for Google Meet calls and import transcripts from previous meetings.
+
+## How it works
+
+Morning Brain Starter runs a series of steps to prepare your day:
+
+1. **Calendar check** - Fetch today's meetings, add Google Meet links to events that need them, and enable transcription reminders
+2. **Task management** - Move yesterday's unfinished tasks to today and display your current task list (Asana)
+3. **Email sync** - Pull recent emails for context (Gmail)
+4. **Transcription import** - Import transcripts from yesterday's meetings
+5. **Client logs** - Update per-client log files with completed tasks and meeting summaries
+
+Each step can be run independently using CLI commands, or run the entire routine with:
+
+```bash
+.venv/bin/python run_morning.py
+```
+
+The tool maintains a clean separation between required (Calendar) and optional (Asana, Gmail) integrations. If you don't configure the optional services, those steps are simply skipped.
+
+## Based on real productivity practices
+
+This project is based on the morning routines of [Alfonso Moure](https://www.alfonsomoure.com), CEO and consultant specializing in technical SEO, WPO, and digital analytics at [bigmomo](https://bigmomo.com).

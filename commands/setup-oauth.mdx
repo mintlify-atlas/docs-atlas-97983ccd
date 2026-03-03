@@ -1,0 +1,371 @@
+---
+title: 'setup-oauth'
+description: 'Configure Google OAuth for Calendar, Meet, Gmail, and Docs APIs'
+---
+
+The `setup_oauth.py` script handles OAuth configuration for all Google services used by Morning Brain Starter in a single authorization flow.
+
+## Command Syntax
+
+```bash
+.venv/bin/python scripts/setup_oauth.py [OPTIONS]
+```
+
+## Options
+
+<ParamField path="--regenerate" type="flag">
+  Force regeneration of the OAuth token even if `GOOGLE_REFRESH_TOKEN` already exists in `.env`. Use this when you need to add new scopes or fix authentication issues.
+</ParamField>
+
+<Note>
+  By default, the script skips OAuth if you already have a valid `GOOGLE_REFRESH_TOKEN`.
+</Note>
+
+## Prerequisites
+
+Before running this script, you need:
+
+1. **Google Cloud Project** with APIs enabled:
+   - Google Calendar API
+   - Google Meet API
+   - Gmail API
+   - Google Docs API
+
+2. **OAuth 2.0 Client credentials** (Desktop app type)
+   - Client ID
+   - Client secret
+
+3. **Environment file** with credentials:
+   ```bash
+   # Copy the example file
+   cp .env.example resources/secrets/.env
+   
+   # Add your credentials
+   GOOGLE_CLIENT_ID=your_client_id_here.apps.googleusercontent.com
+   GOOGLE_CLIENT_SECRET=your_client_secret_here
+   ```
+
+<Tip>
+  See `CREDENTIALS.md` in the project root for detailed instructions on obtaining Google Cloud credentials.
+</Tip>
+
+## Usage Examples
+
+### Initial OAuth setup
+
+```bash
+.venv/bin/python scripts/setup_oauth.py
+```
+
+**Expected Output:**
+```
+Conectar Google (todos los permisos en un solo paso)
+Se abrirá el navegador. Autoriza:
+  • Calendar (ver y editar eventos, Meet)
+  • Meet (activar transcripción)
+  • Gmail (leer correo)
+  • Google Docs (leer documentos enlazados, p. ej. transcripciones)
+
+[Browser opens for OAuth consent]
+
+Token guardado en GOOGLE_REFRESH_TOKEN.
+
+Asana: cuando tengas tu Personal Access Token, añade ASANA_ACCESS_TOKEN en .env.
+Listo. Prueba: .venv/bin/python run_morning.py
+```
+
+### Regenerate token
+
+If you already have a token but need to update permissions:
+
+```bash
+.venv/bin/python scripts/setup_oauth.py --regenerate
+```
+
+**Expected Output:**
+```
+Conectar Google (todos los permisos en un solo paso)
+Se abrirá el navegador. Autoriza:
+  • Calendar (ver y editar eventos, Meet)
+  • Meet (activar transcripción)
+  • Gmail (leer correo)
+  • Google Docs (leer documentos enlazados, p. ej. transcripciones)
+
+[Browser opens for OAuth consent]
+
+Token guardado en GOOGLE_REFRESH_TOKEN.
+
+Asana: cuando tengas tu Personal Access Token, añade ASANA_ACCESS_TOKEN en .env.
+Listo. Prueba: .venv/bin/python run_morning.py
+```
+
+### Check if token exists
+
+Run without `--regenerate` when token exists:
+
+```bash
+.venv/bin/python scripts/setup_oauth.py
+```
+
+**Expected Output:**
+```
+Ya tienes GOOGLE_REFRESH_TOKEN en .env.
+Para regenerar el token con todos los permisos, ejecuta:
+  .venv/bin/python scripts/setup_oauth.py --regenerate
+
+(Asana: configura ASANA_ACCESS_TOKEN directamente en .env cuando lo tengas.)
+```
+
+## OAuth Scopes
+
+The script requests all required Google API scopes in a single authorization:
+
+<ParamField path="calendar.readonly" type="scope">
+  **Endpoint:** `https://www.googleapis.com/auth/calendar.readonly`
+  
+  Read calendar events, attendees, and metadata.
+</ParamField>
+
+<ParamField path="calendar.events" type="scope">
+  **Endpoint:** `https://www.googleapis.com/auth/calendar.events`
+  
+  Create and modify calendar events. Needed for:
+  - Adding Meet links to events
+  - Accepting/declining invitations
+  - Adding transcription reminders to descriptions
+</ParamField>
+
+<ParamField path="meetings.space.settings" type="scope">
+  **Endpoint:** `https://www.googleapis.com/auth/meetings.space.settings`
+  
+  Configure Google Meet settings. Needed for:
+  - Enabling automatic transcription on Meet spaces
+</ParamField>
+
+<ParamField path="gmail.readonly" type="scope">
+  **Endpoint:** `https://www.googleapis.com/auth/gmail.readonly`
+  
+  Read-only access to Gmail. Needed for:
+  - Fetching recent email metadata
+</ParamField>
+
+<ParamField path="documents.readonly" type="scope">
+  **Endpoint:** `https://www.googleapis.com/auth/documents.readonly`
+  
+  Read Google Docs content. Needed for:
+  - Fetching meeting transcriptions from linked Docs
+  - Importing transcription text
+</ParamField>
+
+<Note>
+  All scopes are requested together. You only need to authorize once, even if you add new features that use different APIs.
+</Note>
+
+## How It Works
+
+1. **Load environment**: Reads `resources/secrets/.env` for `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+2. **Check existing token**: Looks for `GOOGLE_REFRESH_TOKEN` in `.env`
+3. **Skip or proceed**: If token exists and `--regenerate` not specified, exits early
+4. **Create OAuth flow**: Uses `google-auth-oauthlib` to build authorization flow
+5. **Open browser**: Launches local web server and opens browser for consent
+6. **User authorizes**: You log in to Google and approve permissions
+7. **Receive callback**: Local server receives OAuth callback with authorization code
+8. **Exchange for token**: Trades authorization code for refresh token
+9. **Save to .env**: Writes `GOOGLE_REFRESH_TOKEN` to `resources/secrets/.env`
+
+## OAuth Flow Details
+
+The script uses the **OAuth 2.0 Installed Application Flow**:
+
+- **Authorization endpoint**: `https://accounts.google.com/o/oauth2/auth`
+- **Token endpoint**: `https://oauth2.googleapis.com/token`
+- **Redirect URI**: `http://localhost` (random port assigned)
+- **Client type**: Desktop application
+
+<Warning>
+  The script starts a temporary local web server on a random port. Ensure your firewall allows localhost connections.
+</Warning>
+
+## Asana Configuration
+
+<Note>
+  **Asana OAuth is separate.** This script only handles Google services. To configure Asana:
+  
+  1. Get a Personal Access Token from [Asana App Settings](https://app.asana.com/0/my-apps)
+  2. Add to `.env` manually:
+     ```bash
+     ASANA_ACCESS_TOKEN=your_token_here
+     ```
+</Note>
+
+## Exit Codes
+
+- **0**: Success - token saved or already exists
+- **1**: Error - missing credentials or OAuth failure
+
+## Error Conditions
+
+<Warning>
+  **Missing credentials**: If `GOOGLE_CLIENT_ID` or `GOOGLE_CLIENT_SECRET` are not in `.env`:
+  
+  ```
+  Falta GOOGLE_CLIENT_ID o GOOGLE_CLIENT_SECRET en .env.
+  Copia .env.example a resources/secrets/.env y rellena esos valores.
+  Ver CREDENTIALS.md para dónde obtenerlos.
+  ```
+  
+  Solution: Copy `.env.example` to `resources/secrets/.env` and add your credentials.
+</Warning>
+
+<Warning>
+  **No .env file**: If `resources/secrets/.env` doesn't exist:
+  
+  ```
+  No existe resources/secrets/.env
+  Copia .env.example a resources/secrets/.env y rellena GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET.
+  ```
+  
+  Solution:
+  ```bash
+  mkdir -p resources/secrets
+  cp .env.example resources/secrets/.env
+  # Edit resources/secrets/.env with your credentials
+  ```
+</Warning>
+
+<Warning>
+  **OAuth consent error**: If authorization fails in the browser:
+  
+  - Ensure you're using a Google account with access to the Google Cloud project
+  - Check that all required APIs are enabled in Google Cloud Console
+  - Verify redirect URI is configured correctly (should allow `http://localhost`)
+  - Try clearing browser cookies for `accounts.google.com`
+</Warning>
+
+## When to Regenerate Token
+
+Run `setup_oauth.py --regenerate` when:
+
+- ✅ You get 403 "Insufficient permissions" errors
+- ✅ You've enabled additional APIs in Google Cloud Console
+- ✅ Your token has been revoked or expired
+- ✅ You need to authorize with a different Google account
+- ✅ Scope requirements have changed (after updating the codebase)
+
+<Tip>
+  Refresh tokens don't expire, but can be revoked. If commands start failing with auth errors, regenerate the token.
+</Tip>
+
+## Security Best Practices
+
+1. **Keep `.env` private**: The `resources/secrets/` directory is gitignored. Never commit credentials.
+
+2. **Use restricted API keys**: In Google Cloud Console, restrict your OAuth client to specific APIs.
+
+3. **Review permissions**: Understand what each scope allows before authorizing.
+
+4. **Rotate tokens periodically**: Regenerate tokens every few months as a security practice.
+
+5. **Revoke unused tokens**: Go to [Google Account Permissions](https://myaccount.google.com/permissions) to revoke old tokens.
+
+## Configuration Files
+
+The script modifies:
+
+- `resources/secrets/.env` - Adds or updates `GOOGLE_REFRESH_TOKEN`
+
+The script reads:
+
+- `resources/secrets/.env` - Reads `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+
+## Related Commands
+
+- [calendar](/commands/calendar) - Uses Calendar API scopes
+- [email](/commands/email) - Uses Gmail API scope
+- [reset-config](/commands/reset-config) - Removes all credentials and tokens
+- [run-morning](/commands/run-morning) - Uses all configured APIs
+
+## Troubleshooting
+
+### Browser doesn't open
+
+If the browser doesn't open automatically:
+
+1. Look for a URL in the terminal output
+2. Copy and paste it into your browser manually
+3. Complete authorization in the browser
+
+### "redirect_uri_mismatch" error
+
+In Google Cloud Console, ensure your OAuth client allows:
+- `http://localhost`
+- Redirect URIs with arbitrary ports
+
+For Desktop application type, this is usually automatic.
+
+### "Access blocked: Authorization Error"
+
+Your OAuth consent screen might be in "Testing" mode:
+
+1. Go to Google Cloud Console → OAuth consent screen
+2. Add your email to "Test users"
+3. Or publish the app (not recommended for personal use)
+
+### Token not saved
+
+Check file permissions:
+```bash
+ls -la resources/secrets/.env
+chmod 600 resources/secrets/.env
+```
+
+Ensure the `resources/secrets/` directory exists:
+```bash
+mkdir -p resources/secrets
+```
+
+## Advanced Usage
+
+### Programmatic token refresh
+
+All scripts automatically refresh access tokens using the refresh token. You don't need to re-run `setup_oauth.py` for routine token refreshes.
+
+**Example from code:**
+```python
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
+
+creds = Credentials(
+    token=None,
+    refresh_token=os.getenv("GOOGLE_REFRESH_TOKEN"),
+    token_uri="https://oauth2.googleapis.com/token",
+    client_id=os.getenv("GOOGLE_CLIENT_ID"),
+    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+    scopes=GOOGLE_SCOPES,
+)
+creds.refresh(Request())
+# creds.token now contains a fresh access token
+```
+
+### Multiple Google accounts
+
+To use different Google accounts:
+
+1. Create separate `.env` files:
+   - `resources/secrets/.env.personal`
+   - `resources/secrets/.env.work`
+
+2. Run setup for each:
+   ```bash
+   export ENV_FILE=resources/secrets/.env.work
+   .venv/bin/python scripts/setup_oauth.py --regenerate
+   ```
+
+3. Switch between environments when running commands:
+   ```bash
+   ln -sf .env.work resources/secrets/.env
+   ```
+
+<Note>
+  The scripts don't natively support multiple accounts. This is a workaround using symbolic links or environment variables.
+</Note>

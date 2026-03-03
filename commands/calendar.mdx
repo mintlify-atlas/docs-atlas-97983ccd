@@ -1,0 +1,350 @@
+---
+title: 'calendar'
+description: 'Manage Google Calendar events, attendees, Meet links, and transcriptions'
+---
+
+The `calendar_lite.py` script provides comprehensive calendar management including event viewing, client/project matching, Meet link management, and transcription handling.
+
+## Command Syntax
+
+```bash
+.venv/bin/python scripts/calendar_lite.py [OPTIONS]
+```
+
+## Calendar Selection
+
+<ParamField path="--calendar" type="string" default="None">
+  Specify a single calendar by name. Takes priority over `CALENDAR_NAME` environment variable and config files.
+  
+  **Metavar:** `NOMBRE`
+</ParamField>
+
+<ParamField path="--which-calendar" type="flag">
+  Print the name of the active calendar(s) and exit. Does not fetch events.
+</ParamField>
+
+<ParamField path="--list-calendars" type="flag">
+  List all calendars in your Google account with names and whether they're the primary calendar.
+</ParamField>
+
+<Note>
+  Calendar priority: `--calendar` argument > `CALENDAR_NAME` env variable > `config/calendar.local.yaml` > `config/calendar.yaml` > "primary"
+</Note>
+
+## Date Range Options
+
+<ParamField path="--range" type="string" default="None">
+  Specify a date range for events. Accepts:
+  - `today` or `hoy`: Today's events
+  - `this_week` or `esta_semana`: Current week (Monday-Sunday UTC)
+  - `next_week` or `proxima_semana`: Next week
+  - `YYYY-MM-DD:YYYY-MM-DD`: Custom date range (inclusive)
+  
+  **Metavar:** `SPEC`
+</ParamField>
+
+<ParamField path="--week" type="flag">
+  Show events for the current week (Monday 00:00 UTC to next Monday).
+</ParamField>
+
+<ParamField path="--today" type="flag">
+  Show today's events and recent events (last 7 days). This is the default if no range is specified.
+</ParamField>
+
+## Event Display Options
+
+<ParamField path="--attendees" type="flag">
+  Show attendee list and response status (accepted, declined, tentative, needsAction) for each event.
+</ParamField>
+
+<ParamField path="--match-clients" type="flag">
+  Match event titles with clients and projects from `config/clients.yaml` and project `matches.yaml` files.
+</ParamField>
+
+<ParamField path="--summary" type="flag">
+  Generate an agenda summary using event descriptions. Shows a condensed view with the first line of each event's description.
+</ParamField>
+
+## Event Response
+
+<ParamField path="--respond" type="array" default="None">
+  Accept, decline, or mark an invitation as tentative. Requires two arguments:
+  1. Response type: `accept`, `decline`, or `tentative` (also accepts `yes`, `no`, `accepted`, `declined`)
+  2. Event ID
+  
+  **Requires:** `calendar.events` scope (re-run `setup_oauth.py` if needed)
+  
+  **Metavar:** `(accept|decline|tentative, EVENT_ID)`
+</ParamField>
+
+## Meet Link Management
+
+<ParamField path="--add-meet" type="flag">
+  Add Google Meet links to events that don't have them. Only processes events in the specified range.
+  
+  **Requires:** `calendar.events` scope
+</ParamField>
+
+<ParamField path="--add-meet-my-events-only" type="flag">
+  When used with `--add-meet`, only add Meet links to events where you're the organizer or an invited attendee.
+</ParamField>
+
+## Transcription Management
+
+<ParamField path="--add-transcription-reminder" type="flag">
+  Activate transcription for events with Meet links. First attempts to use Meet API to enable automatic transcription; if that fails, adds a reminder to the event description.
+  
+  **Requires:** `calendar.events` scope (reminder), `meetings.space.settings` scope (automatic activation)
+</ParamField>
+
+<ParamField path="--transcription-all" type="flag">
+  When used with `--add-transcription-reminder`, apply to all Meet events in range (not just events where you're organizer/attendee).
+</ParamField>
+
+<ParamField path="--read-transcription" type="flag">
+  Read transcription content from a Google Doc linked in an event. Looks for events with Google Docs attachments or links in the description.
+</ParamField>
+
+<ParamField path="--read-transcription-date" type="string" default="yesterday">
+  Date of the event to read transcription from (YYYY-MM-DD format). Defaults to yesterday if not specified.
+  
+  **Metavar:** `YYYY-MM-DD`
+</ParamField>
+
+<ParamField path="--read-transcription-client" type="string" default="None">
+  Filter transcription reading by client name (e.g., "mcr").
+  
+  **Metavar:** `CLIENTE`
+</ParamField>
+
+<ParamField path="--import-transcriptions" type="flag">
+  Import transcriptions from Google Docs linked in calendar events. Saves to `context/clients/<client>/projects/<project>/meetings/transcripcion-YYYY-MM-DD-<slug>.md`
+</ParamField>
+
+<ParamField path="--import-transcriptions-date" type="string" default="yesterday">
+  Date to import transcriptions from (YYYY-MM-DD format). Defaults to yesterday.
+  
+  **Metavar:** `YYYY-MM-DD`
+</ParamField>
+
+## Usage Examples
+
+### View today's events
+
+```bash
+.venv/bin/python scripts/calendar_lite.py --today
+```
+
+**Expected Output:**
+```
+Calendario: primary
+Hoy y recientes (7 días)
+  2026-03-03T09:00  Team Standup
+  2026-03-03T10:30  Client Meeting - Project Alpha
+  2026-03-03T14:00  Code Review Session
+Total: 3 eventos
+```
+
+### View events with attendees
+
+```bash
+.venv/bin/python scripts/calendar_lite.py --today --attendees
+```
+
+**Expected Output:**
+```
+Calendario: primary
+Hoy y recientes (7 días)
+  2026-03-03T09:00  Team Standup
+    – alice@example.com (accepted)
+    – bob@example.com (tentative)
+    – carol@example.com (needsAction)
+  2026-03-03T10:30  Client Meeting - Project Alpha
+    – client@company.com (accepted)
+    – you@example.com (accepted)
+Total: 2 eventos
+```
+
+### Match events with clients and projects
+
+```bash
+.venv/bin/python scripts/calendar_lite.py --range this_week --match-clients
+```
+
+**Expected Output:**
+```
+Calendario: Work
+Semana (UTC): 2026-03-03 -> 2026-03-10
+  2026-03-03T10:30  Client Meeting  [cliente: acme | proyecto: alpha]
+  2026-03-04T14:00  Project Review  [cliente: techcorp]
+  2026-03-05T09:00  Internal Sync
+Total: 3 eventos
+```
+
+### Add Meet links to today's events
+
+```bash
+.venv/bin/python scripts/calendar_lite.py --today --add-meet --add-meet-my-events-only
+```
+
+**Expected Output:**
+```
+Meet añadido a 2 evento(s):
+   2026-03-03T10:30 Client Meeting - Project Alpha
+   2026-03-03T14:00 Code Review Session
+```
+
+### Enable transcription for Meet events
+
+```bash
+.venv/bin/python scripts/calendar_lite.py --today --add-transcription-reminder
+```
+
+**Expected Output:**
+```
+Transcripción activada en 2 cita(s):
+   2026-03-03T10:30 Client Meeting - Project Alpha
+   2026-03-03T15:00 Design Discussion
+```
+
+### Import transcriptions from yesterday
+
+```bash
+.venv/bin/python scripts/calendar_lite.py --import-transcriptions
+```
+
+**Expected Output:**
+```
+Transcripciones – Importadas 2 call(s) de 2026-03-02.
+context/clients/acme/projects/alpha/meetings/transcripcion-2026-03-02-client-meeting.md
+context/clients/techcorp/projects/beta/meetings/transcripcion-2026-03-02-weekly-sync.md
+```
+
+### Read transcription from a specific date
+
+```bash
+.venv/bin/python scripts/calendar_lite.py --read-transcription --read-transcription-date 2026-03-02 --read-transcription-client acme
+```
+
+**Expected Output:**
+```
+Evento: Client Meeting - Project Alpha
+=== Transcripción ===
+
+[Meeting transcript content...]
+```
+
+### Get agenda summary
+
+```bash
+.venv/bin/python scripts/calendar_lite.py --range this_week --summary
+```
+
+**Expected Output:**
+```
+Calendario: Work
+Semana (UTC): 2026-03-03 -> 2026-03-10
+  2026-03-03T09:00 – Team Standup
+    Discuss sprint progress and blockers
+  2026-03-03T10:30 – Client Meeting - Project Alpha
+    Review milestone deliverables and timeline
+  2026-03-04T14:00 – Code Review
+    Review PRs #123, #124, #125
+```
+
+### Accept a calendar invitation
+
+```bash
+.venv/bin/python scripts/calendar_lite.py --respond accept event_abc123xyz
+```
+
+**Expected Output:**
+```
+Hecho: accepted para evento event_abc123xyz
+```
+
+### List all available calendars
+
+```bash
+.venv/bin/python scripts/calendar_lite.py --list-calendars
+```
+
+**Expected Output:**
+```
+  Work (principal)
+  Personal
+  Team Calendar
+  Holidays in Spain
+```
+
+### Check which calendar is active
+
+```bash
+.venv/bin/python scripts/calendar_lite.py --which-calendar
+```
+
+**Expected Output:**
+```
+Work
+```
+
+## Exit Codes
+
+- **0**: Success - operation completed successfully
+- **1**: Error - missing credentials, API error, or invalid parameters
+
+## Error Conditions
+
+<Warning>
+  **Missing credentials**: If `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, or `GOOGLE_REFRESH_TOKEN` are not set in `.env`, the command will fail with:
+  ```
+  Configura Google en .env (CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN).
+  ```
+  
+  Run [setup-oauth](/commands/setup-oauth) to configure credentials.
+</Warning>
+
+<Warning>
+  **Insufficient scope**: Operations like `--respond` and `--add-meet` require the `calendar.events` scope. If you get a 403 error, re-run:
+  ```bash
+  .venv/bin/python scripts/setup_oauth.py --regenerate
+  ```
+</Warning>
+
+<Warning>
+  **Transcription not found**: If `--read-transcription` finds no event with a Google Docs link:
+  ```
+  No hay evento con enlace a Google Docs (adjunto o descripción) para esa fecha.
+  ```
+  
+  Ensure the event has a Doc attachment or Google Docs link in its description.
+</Warning>
+
+## API Scopes Required
+
+Different operations require different Google API scopes:
+
+| Operation | Required Scope |
+|-----------|----------------|
+| View events | `calendar.readonly` |
+| Add Meet, respond to events | `calendar.events` |
+| Enable transcription (API) | `meetings.space.settings` |
+| Read transcription docs | `documents.readonly` |
+
+<Tip>
+  Run `setup_oauth.py` to authorize all scopes at once. The script requests all necessary permissions in a single OAuth flow.
+</Tip>
+
+## Configuration Files
+
+The calendar command uses these configuration files:
+
+- `config/calendar.local.yaml` (gitignored) - Local calendar names
+- `config/calendar.yaml` - Shared calendar configuration
+- `config/clients.yaml` - Client matching rules
+- `context/clients/<client>/projects/*/matches.yaml` - Project matching keywords
+
+## Related Commands
+
+- [run-morning](/commands/run-morning) - Full morning routine (includes calendar steps)
+- [setup-oauth](/commands/setup-oauth) - Configure Google Calendar API access

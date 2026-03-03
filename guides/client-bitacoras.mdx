@@ -1,0 +1,175 @@
+---
+title: Client Meeting Logs (Bitácoras)
+description: How client meeting logs work in Morning Brain Starter
+---
+
+Morning Brain Starter automatically tracks client activity across calendar events, emails, and tasks, organizing them into client-specific log files called **bitácoras**.
+
+## How It Works
+
+Bitácoras are markdown files that maintain a chronological log of all client interactions:
+
+- Calendar events (meetings, calls)
+- Emails mentioning the client
+- Asana tasks associated with client projects
+- Meeting transcriptions
+
+### Client Matching
+
+Events, emails, and tasks are matched to clients using substring matching configured in `config/clients.yaml`:
+
+```yaml config/clients.yaml
+clients:
+  tycho:
+    - tycho
+  rocinante:
+    - rocinante
+  mao-kwikowski:
+    - mao
+    - kwikowski
+  mcr:
+    - mcr
+  acme:
+    - acme
+```
+
+If a calendar event title contains "tycho", it's automatically assigned to the Tycho client. Multiple keywords can match the same client (like "mao" and "kwikowski" both matching mao-kwikowski).
+
+<Note>
+Client names in `clients.yaml` must match the folder names in `context/clients/` for proper organization.
+</Note>
+
+## Directory Structure
+
+Bitácoras are stored in a hierarchical structure:
+
+```
+context/clients/
+├── tycho/
+│   ├── bitacora.md          # Main client log
+│   ├── client.yaml          # Client metadata
+│   └── projects/
+│       └── tycho-com/
+│           ├── matches.yaml
+│           ├── project.yaml
+│           └── meetings/
+│               └── transcripcion-2025-02-08-*.md
+├── rocinante/
+│   ├── bitacora.md
+│   └── projects/
+├── mao-kwikowski/
+└── mcr/
+```
+
+## Bitácora Generation
+
+Bitácoras are automatically updated by the `bitacora_append.py` script, which:
+
+1. Fetches recent calendar events, emails, and tasks
+2. Matches each item to a client using the keywords
+3. Appends new entries to the client's `bitacora.md` file
+4. Skips duplicates to avoid redundant entries
+
+### Entry Format
+
+Each entry type has a distinct format:
+
+**Calendar Events:**
+```markdown
+- **2025-02-08** Meeting with Tycho team – john@tycho.com, sarah@tycho.com
+```
+
+**Emails:**
+```markdown
+- **2025-02-08** Email: Q1 Review Discussion (from john@tycho.com)
+```
+
+**Tasks:**
+```markdown
+- **2025-02-08** Tarea realizada: Update documentation (proyecto: Tycho Website)
+```
+
+**Transcriptions:**
+```markdown
+- **2025-02-08** Transcripción: Weekly sync meeting (proyecto: tycho-com)
+```
+
+## Project-Level Organization
+
+### Project Matching
+
+Within each client, projects can have their own matching rules in `projects/*/matches.yaml`:
+
+```yaml projects/tycho-com/matches.yaml
+calendar:
+  matching:
+    keywords:
+      - tycho
+      - website
+asana:
+  sync_enabled: false
+```
+
+This allows more granular matching of events to specific projects within a client.
+
+### Meetings Directory
+
+Transcriptions are stored in the project's `meetings/` folder with the naming pattern:
+
+```
+transcripcion-YYYY-MM-DD-meeting-slug.md
+```
+
+The script automatically:
+- Extracts the meeting code from the filename
+- Links transcriptions to the correct project
+- References them in the client's bitácora
+
+<Steps>
+  <Step title="Configure clients">
+    Add your clients to `config/clients.yaml` with matching keywords
+  </Step>
+  <Step title="Create client directories">
+    Run the morning routine to auto-create `context/clients/` structure
+  </Step>
+  <Step title="Add project folders">
+    Create `projects/` subdirectories for each client engagement
+  </Step>
+  <Step title="Run daily updates">
+    The morning routine automatically appends new entries to bitácoras
+  </Step>
+</Steps>
+
+## Viewing Bitácoras
+
+Bitácoras are plain markdown files that can be:
+
+- Read directly in any text editor
+- Viewed in your IDE with markdown preview
+- Processed by AI agents during morning routines
+- Searched using standard text search tools
+
+<Warning>
+Bitácoras can contain sensitive client information. Ensure `context/` is in your `.gitignore` if using version control.
+</Warning>
+
+## Manual Editing
+
+You can manually add entries to bitácoras:
+
+```markdown bitacora.md
+# Bitácora – tycho
+
+- **2025-02-08** Meeting with Tycho team – john@tycho.com
+- **2025-02-08** Manual note: Discussed new feature requirements
+- **2025-02-09** Follow-up email sent with proposal
+```
+
+Manual entries won't be overwritten as long as they're not exact duplicates of auto-generated content.
+
+## Related Configuration
+
+See also:
+- [Task Ordering](/guides/task-ordering) for prioritizing client work by day
+- [Meet Transcriptions](/guides/meet-transcriptions) for automatic meeting capture
+- [Demo Mode](/guides/demo-mode) for testing with fake client data

@@ -1,0 +1,399 @@
+---
+title: Google Calendar Setup
+description: Configure mandatory Google Calendar integration with OAuth 2.0
+---
+
+Google Calendar is the **mandatory** integration for Morning Brain Starter. The tool reads your daily schedule, identifies meetings with clients, and helps you prepare context for each call.
+
+<Info>
+  **Recommendation**: Create a dedicated Google Cloud project named "morning-brain-starter" to keep these credentials and APIs separate from other projects.
+</Info>
+
+## Overview
+
+Setting up Google Calendar integration requires:
+
+1. Creating a Google Cloud project
+2. Enabling required Google APIs
+3. Creating OAuth 2.0 credentials
+4. Running the OAuth setup script to generate a refresh token
+5. Configuring which calendars to monitor
+
+## Prerequisites
+
+- A Google account with access to Google Cloud Console
+- Python 3.x installed with virtual environment activated
+- Morning Brain Starter project cloned locally
+
+## Step 1: Create Google Cloud Project
+
+<Steps>
+  <Step title="Navigate to Google Cloud Console">
+    Go to [Google Cloud Console](https://console.cloud.google.com/) and sign in with your Google account.
+  </Step>
+  
+  <Step title="Create new project">
+    Click the project dropdown at the top and select **New Project**.
+    
+    - **Project name**: `morning-brain-starter`
+    - **Organization**: (leave as default or select your organization)
+    - Click **Create**
+  </Step>
+  
+  <Step title="Select the new project">
+    After creation, ensure your new project is selected in the project dropdown.
+  </Step>
+</Steps>
+
+## Step 2: Enable Google APIs
+
+<Steps>
+  <Step title="Navigate to APIs & Services">
+    In the Google Cloud Console:
+    1. Open the navigation menu (☰)
+    2. Go to **APIs & Services** → **Library**
+  </Step>
+  
+  <Step title="Enable Google Calendar API (Required)">
+    - Search for "Google Calendar API"
+    - Click on it
+    - Click **Enable**
+    
+    This API is **required** for Morning Brain Starter to function.
+  </Step>
+  
+  <Step title="Enable Gmail API (Optional)">
+    - Search for "Gmail API"
+    - Click on it
+    - Click **Enable**
+    
+    Only needed if you want to read recent emails in your morning briefing.
+  </Step>
+  
+  <Step title="Enable Google Docs API (Optional)">
+    - Search for "Google Docs API"
+    - Click on it
+    - Click **Enable**
+    
+    Needed if you want to read meeting transcriptions stored in Google Docs that are linked from calendar events.
+  </Step>
+  
+  <Step title="Enable Google Meet API (Optional)">
+    - Search for "Google Meet API" or "Google Meet Spaces API"
+    - Click on it
+    - Click **Enable**
+    
+    Needed if you want to programmatically enable transcription for Google Meet calls.
+  </Step>
+</Steps>
+
+<Note>
+  The OAuth setup script (`setup_oauth.py`) requests all scopes in a single authorization flow, so you can enable all APIs now even if you're not using them yet.
+</Note>
+
+## Step 3: Create OAuth 2.0 Credentials
+
+<Steps>
+  <Step title="Navigate to Credentials">
+    In Google Cloud Console:
+    1. Go to **APIs & Services** → **Credentials**
+  </Step>
+  
+  <Step title="Configure OAuth consent screen">
+    If this is your first time creating credentials:
+    
+    1. Click **Configure Consent Screen**
+    2. Choose **External** (unless you're using a Google Workspace account)
+    3. Fill in required fields:
+       - **App name**: Morning Brain Starter
+       - **User support email**: Your email
+       - **Developer contact email**: Your email
+    4. Click **Save and Continue**
+    5. Skip adding scopes (the script handles this)
+    6. Add yourself as a test user if using External user type
+    7. Click **Save and Continue**
+  </Step>
+  
+  <Step title="Create OAuth Client ID">
+    1. Click **Create Credentials** → **OAuth client ID**
+    2. **Application type**: Desktop app
+    3. **Name**: morning-brain-starter-desktop
+    4. Click **Create**
+  </Step>
+  
+  <Step title="Download credentials">
+    After creation, you'll see a dialog with your client ID and client secret:
+    - Copy the **Client ID**
+    - Copy the **Client Secret**
+    
+    You can also download the JSON file, but you'll need to extract these values manually.
+  </Step>
+</Steps>
+
+<Warning>
+  Keep your Client ID and Client Secret secure. Never commit them to version control or share them publicly.
+</Warning>
+
+## Step 4: Configure Environment Variables
+
+<Steps>
+  <Step title="Create .env file">
+    Copy the example environment file:
+    
+    ```bash
+    mkdir -p resources/secrets
+    cp .env.example resources/secrets/.env
+    ```
+  </Step>
+  
+  <Step title="Add Google credentials">
+    Edit `resources/secrets/.env` and add your Google OAuth credentials:
+    
+    ```bash
+    # Obligatorio: Google Calendar
+    GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+    GOOGLE_CLIENT_SECRET=your-client-secret
+    GOOGLE_REFRESH_TOKEN=
+    ```
+    
+    Leave `GOOGLE_REFRESH_TOKEN` empty for now - the setup script will fill it in.
+  </Step>
+</Steps>
+
+## Step 5: Run OAuth Setup Script
+
+The `setup_oauth.py` script handles the OAuth 2.0 authorization flow and generates a refresh token with all required scopes.
+
+<Steps>
+  <Step title="Run the setup script">
+    From the project root directory:
+    
+    ```bash
+    .venv/bin/python scripts/setup_oauth.py
+    ```
+    
+    The script will:
+    1. Read your `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` from `.env`
+    2. Start a local web server
+    3. Open your default browser
+  </Step>
+  
+  <Step title="Authorize in browser">
+    In the browser window that opens:
+    
+    1. Select your Google account
+    2. Review the permissions being requested:
+       - View and edit your Google Calendar events
+       - Read your Gmail messages (if Gmail API enabled)
+       - View your Google Docs documents (if Docs API enabled)
+       - Manage Google Meet settings (if Meet API enabled)
+    3. Click **Continue** or **Allow**
+  </Step>
+  
+  <Step title="Verify token generation">
+    After authorization, the script will:
+    - Display a success message
+    - Automatically write `GOOGLE_REFRESH_TOKEN` to your `.env` file
+    
+    You should see:
+    ```
+    Token guardado en GOOGLE_REFRESH_TOKEN.
+    
+    Asana: cuando tengas tu Personal Access Token, añade ASANA_ACCESS_TOKEN en .env.
+    Listo. Prueba: .venv/bin/python run_morning.py
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  The refresh token is long-lived and allows Morning Brain Starter to access your Google services without requiring manual authorization each time.
+</Note>
+
+### Regenerating the Token
+
+If you need to regenerate the token (e.g., to add new API scopes):
+
+```bash
+.venv/bin/python scripts/setup_oauth.py --regenerate
+```
+
+This will force a new OAuth flow even if `GOOGLE_REFRESH_TOKEN` already exists.
+
+## Step 6: Configure Calendar Selection
+
+By default, Morning Brain Starter reads only your primary Google Calendar. To monitor multiple calendars or specific named calendars:
+
+<Steps>
+  <Step title="Edit calendar.yaml">
+    Open `config/calendar.yaml` and specify calendar names:
+    
+    ```yaml
+    # Calendarios que revisa el morning. Nombres exactos como en Google Calendar.
+    # Si está vacío o no existe, se usa solo el calendario principal (primary).
+    
+    calendars:
+      - Work
+      - Personal
+      - "Demo #hechoConIA"
+    ```
+    
+    <Info>
+      Calendar names must match **exactly** as they appear in Google Calendar, including capitalization and special characters.
+    </Info>
+  </Step>
+  
+  <Step title="Override via environment variable (optional)">
+    To quickly test with a single calendar, set the `CALENDAR_NAME` environment variable in `.env`:
+    
+    ```bash
+    # Opcional: único calendario a usar por nombre (prioritario sobre config/calendar*.yaml).
+    CALENDAR_NAME=Demo #hechoConIA
+    ```
+    
+    This takes priority over `calendar.yaml`.
+  </Step>
+</Steps>
+
+## Environment Variables Reference
+
+### Required Variables
+
+<ParamField path="GOOGLE_CLIENT_ID" type="string" required>
+  OAuth 2.0 Client ID from Google Cloud Console.
+  
+  **Where to get it**: Google Cloud Console → APIs & Services → Credentials → Create OAuth Client ID (Desktop app)
+  
+  **Example**: `123456789-abc123.apps.googleusercontent.com`
+</ParamField>
+
+<ParamField path="GOOGLE_CLIENT_SECRET" type="string" required>
+  OAuth 2.0 Client Secret from Google Cloud Console.
+  
+  **Where to get it**: Same location as Client ID, shown when creating credentials.
+  
+  **Example**: `GOCSPX-abc123xyz789`
+</ParamField>
+
+<ParamField path="GOOGLE_REFRESH_TOKEN" type="string" required>
+  Long-lived refresh token generated by running `setup_oauth.py`.
+  
+  **How to generate**: Run `.venv/bin/python scripts/setup_oauth.py` and authorize in the browser.
+  
+  **Note**: This is automatically written to `.env` by the setup script.
+</ParamField>
+
+### Optional Variables
+
+<ParamField path="CALENDAR_NAME" type="string">
+  Override to use a single specific calendar by name. Takes priority over `config/calendar.yaml`.
+  
+  **Example**: `CALENDAR_NAME=Work`
+</ParamField>
+
+<ParamField path="GOOGLE_CALENDAR_EMAIL" type="string">
+  Your Google Calendar email address. Used for accepting/declining calendar invites when the API doesn't return 'self' in the event.
+  
+  **Example**: `GOOGLE_CALENDAR_EMAIL=you@gmail.com`
+</ParamField>
+
+## OAuth Scopes Requested
+
+The `setup_oauth.py` script requests these scopes in a single authorization flow:
+
+```python
+GOOGLE_SCOPES = [
+    # Calendar: read events and modify (add Meet, accept/decline, update description)
+    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/calendar.events",
+    # Meet: enable transcription in meeting spaces
+    "https://www.googleapis.com/auth/meetings.space.settings",
+    # Gmail: read recent email (morning briefing, bitácoras)
+    "https://www.googleapis.com/auth/gmail.readonly",
+    # Docs: read linked Docs content (transcriptions in calendar events)
+    "https://www.googleapis.com/auth/documents.readonly",
+]
+```
+
+<Note>
+  Even if you don't plan to use Gmail or Docs features, authorizing all scopes now means you won't need to regenerate the token later.
+</Note>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Error: 'Falta GOOGLE_CLIENT_ID o GOOGLE_CLIENT_SECRET'">
+    The setup script cannot find your credentials in `.env`.
+    
+    **Solution**:
+    1. Verify `resources/secrets/.env` exists
+    2. Check that `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set (not empty)
+    3. Ensure there are no typos in the variable names
+  </Accordion>
+  
+  <Accordion title="Error: 'redirect_uri_mismatch'">
+    The redirect URI in your OAuth consent screen doesn't match what the script expects.
+    
+    **Solution**:
+    1. In Google Cloud Console → Credentials → Edit your OAuth Client ID
+    2. Under "Authorized redirect URIs", ensure `http://localhost` is listed
+    3. The script uses a random port, so just `http://localhost` without a port should work
+  </Accordion>
+  
+  <Accordion title="Browser doesn't open automatically">
+    The script tries to open your default browser but may fail in some environments.
+    
+    **Solution**:
+    1. Look for a URL in the terminal output (starts with `https://accounts.google.com/o/oauth2/auth...`)
+    2. Manually copy and paste this URL into your browser
+    3. Complete the authorization flow
+  </Accordion>
+  
+  <Accordion title="Token expired or invalid error when running morning">
+    Your refresh token may have been revoked or expired.
+    
+    **Solution**:
+    1. Regenerate the token: `.venv/bin/python scripts/setup_oauth.py --regenerate`
+    2. Complete the authorization flow again
+  </Accordion>
+  
+  <Accordion title="Need to add new API scopes">
+    If you enabled a new API (like Docs or Meet) after generating your token.
+    
+    **Solution**:
+    1. Enable the API in Google Cloud Console
+    2. Regenerate the token: `.venv/bin/python scripts/setup_oauth.py --regenerate`
+    3. The new scopes will be included in the authorization request
+  </Accordion>
+</AccordionGroup>
+
+## Testing Your Configuration
+
+After completing setup, test your configuration:
+
+```bash
+.venv/bin/python run_morning.py
+```
+
+You should see:
+- Your calendar events for today
+- Client meetings identified
+- Any relevant context from bitácoras
+
+If you see calendar events, your Google Calendar integration is working correctly!
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Client Configuration" icon="users" href="/configuration/clients">
+    Map calendar events to clients and configure bitácoras
+  </Card>
+  <Card title="Asana Integration" icon="check" href="/configuration/asana">
+    Optional: Add task management
+  </Card>
+  <Card title="Gmail Integration" icon="envelope" href="/configuration/gmail">
+    Optional: Include recent emails
+  </Card>
+  <Card title="Usage Guide" icon="book" href="/commands/run-morning">
+    Learn how to use Morning Brain Starter
+  </Card>
+</CardGroup>

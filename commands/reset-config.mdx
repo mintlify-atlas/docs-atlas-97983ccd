@@ -1,0 +1,365 @@
+---
+title: 'reset-config'
+description: 'Remove all credentials, tokens, and virtual environment to reset the project'
+---
+
+The `reset_config.py` script removes all local configuration, credentials, and the virtual environment, returning the project to a freshly-cloned state.
+
+## Command Syntax
+
+```bash
+.venv/bin/python scripts/reset_config.py
+```
+
+<Note>
+  This script has no command-line options. It performs a complete reset when run.
+</Note>
+
+<Warning>
+  **Destructive operation**: This command deletes credentials and tokens. You'll need to re-run [setup-oauth](/commands/setup-oauth) and reconfigure Asana after resetting.
+</Warning>
+
+## What Gets Removed
+
+The reset script removes:
+
+1. **All files in `resources/secrets/`**:
+   - `.env` (credentials and tokens)
+   - Any other secret files
+
+2. **Virtual environment**:
+   - Entire `.venv/` directory
+   - All installed Python packages
+
+3. **What's preserved**:
+   - ✅ All source code
+   - ✅ `config/clients.yaml`
+   - ✅ `config/email.yaml`
+   - ✅ `config/asana_order.yaml`
+   - ✅ `config/demo/` directory (demo data)
+   - ✅ `config/demo_gmail_fake.yaml` (demo flag)
+   - ✅ `context/` directory (client data, bitácoras, transcriptions)
+
+<Note>
+  The script preserves demo mode configuration so you can continue testing without real API credentials.
+</Note>
+
+## Usage Examples
+
+### Standard reset
+
+```bash
+.venv/bin/python scripts/reset_config.py
+```
+
+**Expected Output:**
+```
+Configuración eliminada: secrets/.env, .venv
+Puedes volver a configurar con el boarding o ejecutando: python scripts/setup_oauth.py
+(Demo: config/demo/ y flag de emails fake se mantienen.)
+```
+
+### No configuration exists
+
+If you run reset on a fresh clone:
+
+```bash
+python scripts/reset_config.py
+```
+
+**Expected Output:**
+```
+No había credenciales ni .venv. Nada que resetear.
+(Demo: config/demo/ y flag de emails fake se mantienen.)
+```
+
+### After reset, reconfigure
+
+```bash
+# 1. Reset (removes credentials)
+.venv/bin/python scripts/reset_config.py
+
+# 2. Recreate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Copy environment template
+cp .env.example resources/secrets/.env
+
+# 5. Edit .env with your credentials
+vim resources/secrets/.env
+
+# 6. Run OAuth setup
+.venv/bin/python scripts/setup_oauth.py
+
+# 7. Add Asana token to .env
+echo "ASANA_ACCESS_TOKEN=your_token" >> resources/secrets/.env
+
+# 8. Test morning routine
+.venv/bin/python run_morning.py
+```
+
+## When to Use Reset
+
+Use `reset_config.py` when:
+
+- ✅ **Switching Google accounts**: Need to authorize with different credentials
+- ✅ **Troubleshooting authentication**: Clear corrupt tokens or credentials
+- ✅ **Sharing the project**: Remove your credentials before handing off to someone else
+- ✅ **Starting fresh**: Want to reconfigure everything from scratch
+- ✅ **Security concern**: Suspect credentials may be compromised
+- ✅ **Testing setup process**: Verify the onboarding experience
+
+<Warning>
+  **Don't use reset for**:
+  - Updating code (use `git pull` instead)
+  - Clearing cached data (not implemented - reset doesn't touch `context/`)
+  - Fixing bugs (reset won't help with code issues)
+</Warning>
+
+## Exit Codes
+
+- **0**: Always exits with success (even if nothing to delete)
+
+## What Happens to Credentials
+
+### Google OAuth tokens
+
+- `GOOGLE_REFRESH_TOKEN` is deleted from `.env`
+- The token remains valid in Google's systems until revoked
+- To fully revoke: [Google Account Permissions](https://myaccount.google.com/permissions)
+
+### Asana tokens
+
+- `ASANA_ACCESS_TOKEN` is deleted from `.env`
+- The token remains valid in Asana until revoked
+- To revoke: [Asana App Settings](https://app.asana.com/0/my-apps)
+
+### Client ID and secrets
+
+- `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are deleted
+- These remain valid in Google Cloud Console
+- Obtain them again from: [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+
+<Tip>
+  Save your `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in a password manager. You'll need them after resetting.
+</Tip>
+
+## Demo Mode Preservation
+
+The reset script ensures demo mode continues working:
+
+1. **Preserves `config/demo/`**: Fake email data remains intact
+2. **Recreates `config/demo_gmail_fake.yaml`**: Flag file is restored if missing
+
+This allows you to demonstrate the tool without real API credentials after a reset.
+
+**Demo mode files:**
+- `config/demo/emails_fake.json` - Sample email data
+- `config/demo_gmail_fake.yaml` - Flag to enable demo mode
+
+## Security Implications
+
+<Warning>
+  **After resetting, the deleted `.env` file may still be recoverable** from disk using forensic tools. For maximum security:
+  
+  1. Revoke tokens in Google/Asana before resetting
+  2. Use secure deletion tools:
+     ```bash
+     # macOS/Linux
+     shred -u resources/secrets/.env
+     
+     # Or on macOS
+     rm -P resources/secrets/.env
+     ```
+  3. Rotate client secrets in Google Cloud Console
+</Warning>
+
+## Configuration Persistence
+
+These configuration files are **not deleted** by reset:
+
+### Client configuration
+- `config/clients.yaml` - Client matching keywords
+- `context/clients/*/` - Client directories and data
+
+### Service configuration
+- `config/email.yaml` - Gmail sync settings
+- `config/calendar.yaml` - Calendar selection
+- `config/asana_order.yaml` - Task ordering by day
+
+### Demo configuration
+- `config/demo/` - Demo data files
+- `config/demo_gmail_fake.yaml` - Demo mode flag
+
+<Note>
+  Reset only removes **secrets and runtime environment**. All project configuration and data remain intact.
+</Note>
+
+## Re-setup After Reset
+
+### Quick re-setup (same credentials)
+
+If you have your credentials saved:
+
+```bash
+# Recreate .env
+echo "GOOGLE_CLIENT_ID=your_id" > resources/secrets/.env
+echo "GOOGLE_CLIENT_SECRET=your_secret" >> resources/secrets/.env
+echo "ASANA_ACCESS_TOKEN=your_token" >> resources/secrets/.env
+
+# Regenerate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# Run OAuth setup
+.venv/bin/python scripts/setup_oauth.py
+```
+
+### Full re-setup (new credentials)
+
+Follow the main setup instructions:
+
+1. Create Google Cloud project and enable APIs
+2. Create OAuth 2.0 credentials
+3. Get Asana Personal Access Token
+4. Copy `.env.example` and fill in values
+5. Run `setup_oauth.py`
+6. Test with `run_morning.py`
+
+See the project README for detailed setup steps.
+
+## Automation and CI/CD
+
+### Pre-commit hook
+
+To prevent accidentally committing credentials:
+
+```bash
+#!/bin/bash
+# .git/hooks/pre-commit
+
+if git diff --cached --name-only | grep -q "resources/secrets/"; then
+  echo "Error: Attempting to commit secrets!"
+  echo "Run: .venv/bin/python scripts/reset_config.py"
+  exit 1
+fi
+```
+
+### CI/CD environments
+
+For testing in CI:
+
+```yaml
+# .github/workflows/test.yml
+steps:
+  - name: Setup demo mode
+    run: |
+      mkdir -p config/demo
+      touch config/demo_gmail_fake.yaml
+      echo '[]' > config/demo/emails_fake.json
+  
+  - name: Run tests
+    run: |
+      .venv/bin/python run_morning.py
+```
+
+Demo mode allows testing without real credentials in CI.
+
+## Related Commands
+
+- [setup-oauth](/commands/setup-oauth) - Reconfigure Google OAuth after reset
+- [run-morning](/commands/run-morning) - Test configuration after re-setup
+
+## Troubleshooting
+
+### Permission denied
+
+If reset fails with permission errors:
+
+```bash
+# Check file ownership
+ls -la resources/secrets/
+
+# Fix permissions
+chmod -R u+w resources/secrets/
+chmod -R u+w .venv/
+
+# Run reset again
+.venv/bin/python scripts/reset_config.py
+```
+
+### Virtual environment in use
+
+On Windows, deactivate the virtual environment first:
+
+```bash
+deactivate
+python scripts/reset_config.py
+```
+
+### Directory not empty
+
+If `.venv` removal fails:
+
+```bash
+# Manual removal
+rm -rf .venv
+rm -rf resources/secrets/*
+
+# Verify
+ls resources/secrets/
+ls .venv/  # should not exist
+```
+
+## Manual Reset Alternative
+
+You can reset manually without running the script:
+
+```bash
+# Remove secrets
+rm -f resources/secrets/*
+
+# Remove virtual environment
+rm -rf .venv
+
+# Ensure demo flag exists
+mkdir -p config
+touch config/demo_gmail_fake.yaml
+```
+
+This achieves the same result as running `reset_config.py`.
+
+<Tip>
+  Before sharing your project with others, run reset to ensure no credentials are included. Then commit and push the clean state.
+</Tip>
+
+## Implementation Details
+
+The script uses Python's `pathlib` and `shutil` modules:
+
+```python
+# 1. Remove secrets
+secrets_dir = get_secrets_dir()  # resources/secrets/
+for f in secrets_dir.iterdir():
+    if f.is_file():
+        f.unlink()  # Delete file
+
+# 2. Remove venv
+venv_dir = project_root / ".venv"
+if venv_dir.exists():
+    shutil.rmtree(venv_dir)  # Recursive delete
+
+# 3. Ensure demo flag
+flag = project_root / "config" / "demo_gmail_fake.yaml"
+if not flag.exists():
+    flag.write_text("# Activar modo demo para Gmail (emails fake)\n")
+```
+
+<Note>
+  The script is safe to run multiple times. Running reset when already reset has no effect.
+</Note>

@@ -1,0 +1,259 @@
+---
+title: 'asana'
+description: 'Manage Asana tasks, move tasks between dates, and export to log files'
+---
+
+The `asana_lite.py` script manages your Asana tasks, including listing today's tasks, moving tasks from yesterday to today, and exporting completed tasks to client log files (bitácoras).
+
+## Command Syntax
+
+```bash
+.venv/bin/python scripts/asana_lite.py [OPTIONS]
+```
+
+## Options
+
+<ParamField path="--move-yesterday-to-today" type="flag">
+  Move all pending tasks with a due date of yesterday to today. Only moves incomplete tasks assigned to you.
+</ParamField>
+
+<ParamField path="--completed-yesterday-to-bitacora" type="flag">
+  Export tasks completed yesterday to client log files (bitácoras). Reads task descriptions and adds entries to `context/clients/<client>/bitacoras/<YYYY>/<MM>.md`
+</ParamField>
+
+<Note>
+  If no options are provided, the script lists all tasks due today.
+</Note>
+
+## Usage Examples
+
+### List today's tasks
+
+```bash
+.venv/bin/python scripts/asana_lite.py
+```
+
+**Expected Output:**
+```
+Tareas hoy: 5
+  Update documentation
+  Review pull requests
+  Client meeting prep
+  Write unit tests
+  Deploy to staging
+```
+
+### Move yesterday's tasks to today
+
+```bash
+.venv/bin/python scripts/asana_lite.py --move-yesterday-to-today
+```
+
+**Expected Output:**
+```
+Tareas movidas de ayer a hoy: 3
+```
+
+<Tip>
+  This is useful for the morning routine - any tasks you didn't complete yesterday are automatically rescheduled to today.
+</Tip>
+
+### Export completed tasks to log files
+
+```bash
+.venv/bin/python scripts/asana_lite.py --completed-yesterday-to-bitacora
+```
+
+**Expected Output:**
+```
+Tareas realizadas ayer → bitácora: 4 entrada(s) añadida(s).
+```
+
+<Note>
+  This command reads the task name and description, matches it to a client/project based on `config/clients.yaml`, and appends an entry to the corresponding monthly log file.
+</Note>
+
+## Task Ordering
+
+Tasks are automatically sorted by day of the week using `config/asana_order.yaml`. This allows you to prioritize certain projects on specific days.
+
+**Example `config/asana_order.yaml`:**
+```yaml
+Monday:
+  - ProjectAlpha
+  - InternalTools
+  - Documentation
+
+Tuesday:
+  - ProjectBeta
+  - ClientWork
+  - CodeReview
+
+Wednesday:
+  - ProjectAlpha
+  - Meetings
+  - Planning
+```
+
+Tasks from projects listed first appear at the top of your daily list. Projects not in the configuration appear at the end.
+
+## Environment Variables
+
+The Asana command uses these environment variables from `.env`:
+
+<ParamField path="ASANA_ACCESS_TOKEN" type="string" required>
+  Your Asana Personal Access Token. Get this from [Asana App Settings](https://app.asana.com/0/my-apps).
+</ParamField>
+
+<ParamField path="ASANA_WORKSPACE_GID" type="string" default="auto-detected">
+  Your Asana workspace ID. If not set, uses the first workspace from your account.
+</ParamField>
+
+<ParamField path="ASANA_INBOX_PROJECT_GID" type="string" default="None">
+  The GID of your "My tasks" or inbox project. If set, ensures all tasks due today are added to this project.
+</ParamField>
+
+<ParamField path="ASANA_TODAY_SECTION_GID" type="string" default="auto-detected">
+  The GID of the "Today" section in your inbox project. If not set, searches for a section named "Today".
+</ParamField>
+
+## How It Works
+
+### Listing Tasks
+
+When you run the script without options:
+
+1. Fetches all tasks assigned to you with `due_on` = today
+2. If `ASANA_INBOX_PROJECT_GID` is set, ensures tasks are in that project
+3. Moves tasks to the "Today" section if `ASANA_TODAY_SECTION_GID` is configured
+4. Sorts tasks by project priority using `config/asana_order.yaml`
+5. Displays the sorted task list
+
+### Moving Tasks
+
+When using `--move-yesterday-to-today`:
+
+1. Queries Asana API for tasks with `due_on` = yesterday
+2. Filters for incomplete tasks assigned to you
+3. Updates each task's `due_on` field to today
+4. Reports the number of tasks moved
+
+### Exporting to Log Files
+
+When using `--completed-yesterday-to-bitacora`:
+
+1. Queries tasks completed yesterday (using `completed_at` timestamp)
+2. Extracts task name, project, and notes (description)
+3. Matches task to client using `config/clients.yaml` keywords
+4. Appends entry to `context/clients/<client>/bitacoras/<YYYY>/<MM>.md`
+5. Reports the number of entries added
+
+## API Requirements
+
+<Warning>
+  **Required scope:** The Asana Personal Access Token must have `tasks:read` permission (included by default).
+  
+  **Write operations:** `--move-yesterday-to-today` requires `tasks:write` permission.
+</Warning>
+
+## Exit Codes
+
+- **0**: Success - operation completed
+- **Non-zero**: Error or no token configured
+
+## Error Conditions
+
+<Warning>
+  **Missing token**: If `ASANA_ACCESS_TOKEN` is not set, the script silently returns an empty list and exits with code 0. To check if your token is configured:
+  
+  ```bash
+  grep ASANA_ACCESS_TOKEN resources/secrets/.env
+  ```
+</Warning>
+
+<Warning>
+  **API errors**: Network issues or invalid tokens fail silently. Check your internet connection and token validity at [Asana App Settings](https://app.asana.com/0/my-apps).
+</Warning>
+
+## Advanced Usage
+
+### Finding Your Workspace GID
+
+If you have multiple workspaces and want to specify which one to use:
+
+1. Go to [Asana](https://app.asana.com)
+2. Check the URL: `https://app.asana.com/0/<workspace_gid>/home`
+3. Add to `.env`: `ASANA_WORKSPACE_GID=<workspace_gid>`
+
+### Finding Project and Section GIDs
+
+To find your "My tasks" project GID and "Today" section GID:
+
+1. Open your "My tasks" in Asana
+2. Check the URL: `https://app.asana.com/0/<project_gid>/list`
+3. Add to `.env`: `ASANA_INBOX_PROJECT_GID=<project_gid>`
+
+For the Today section GID, use the Asana API:
+```bash
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  "https://app.asana.com/api/1.0/projects/YOUR_PROJECT_GID/sections?opt_fields=name,gid"
+```
+
+Find the section with `"name": "Today"` and use its GID.
+
+### Automatic Task Organization
+
+When `ASANA_INBOX_PROJECT_GID` and `ASANA_TODAY_SECTION_GID` are both configured:
+
+- Tasks due today are automatically added to your inbox project
+- Tasks are moved to the "Today" section
+- Tasks appear in your "Today" view in Asana
+
+This keeps your Asana workspace organized without manual dragging.
+
+## Client Matching
+
+For `--completed-yesterday-to-bitacora`, tasks are matched to clients using:
+
+1. **Project name**: Matched against client names in `config/clients.yaml`
+2. **Task name**: Searched for client keywords
+3. **Task description**: Searched for client keywords
+
+If no client match is found, the task is skipped.
+
+## Configuration Files
+
+- `config/asana_order.yaml` - Project ordering by day of week
+- `config/clients.yaml` - Client keywords for matching tasks
+- `context/clients/<client>/projects/*/matches.yaml` - Project-specific matching rules
+
+## Related Commands
+
+- [run-morning](/commands/run-morning) - Full morning routine (includes Asana steps 2, 3, 6)
+- [calendar](/commands/calendar) - Calendar integration for matching events to tasks
+
+## Practical Workflow
+
+A typical morning workflow:
+
+```bash
+# 1. Move unfinished tasks from yesterday
+.venv/bin/python scripts/asana_lite.py --move-yesterday-to-today
+
+# 2. View today's task list
+.venv/bin/python scripts/asana_lite.py
+
+# 3. Later: Export yesterday's completed work to logs
+.venv/bin/python scripts/asana_lite.py --completed-yesterday-to-bitacora
+```
+
+Or run all at once:
+```bash
+.venv/bin/python run_morning.py --step 2 && \
+.venv/bin/python run_morning.py --step 3 && \
+.venv/bin/python run_morning.py --step 6
+```
+
+<Tip>
+  Combine with calendar events using the `--match-clients` flag to see which tasks correspond to today's meetings.
+</Tip>
