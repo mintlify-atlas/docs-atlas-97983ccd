@@ -1,0 +1,86 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "Morning Brain Starter",
+  "projectDescription": "A lightweight morning routine CLI tool that aggregates Google Calendar meetings, Asana tasks, Gmail emails, and generates client bitácoras (logs).",
+  "theme": "palm",
+  "primaryColor": "#4285F4",
+  "lightColor": "#34A853",
+  "darkColor": "#1967D2",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/overview",
+              "configuration/google-calendar",
+              "configuration/asana",
+              "configuration/gmail",
+              "configuration/clients"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Commands",
+        "groups": [
+          {
+            "group": "Core Commands",
+            "pages": [
+              "commands/run-morning",
+              "commands/calendar",
+              "commands/asana",
+              "commands/email",
+              "commands/setup-oauth",
+              "commands/reset-config"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "How-To Guides",
+            "pages": [
+              "guides/client-bitacoras",
+              "guides/meet-transcriptions",
+              "guides/task-ordering",
+              "guides/demo-mode",
+              "guides/troubleshooting"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Google Calendar integration with meeting summaries",
+    "Asana task management and daily prioritization",
+    "Gmail email synchronization",
+    "Client bitácora (log) generation",
+    "Google Meet transcription automation",
+    "Multi-step morning routine orchestration",
+    "Demo mode with fake data"
+  ],
+  "publicApiSurface": [
+    "run_morning.py - Main CLI entry point",
+    "scripts/calendar_lite.py - Calendar operations",
+    "scripts/asana_lite.py - Asana task management",
+    "scripts/email_lite.py - Email synchronization",
+    "scripts/setup_oauth.py - OAuth configuration wizard",
+    "scripts/reset_config.py - Configuration reset",
+    "scripts/morning_step_bitacora.py - Bitácora generation",
+    "scripts/bitacora_append.py - Append to bitácoras"
+  ]
+}
